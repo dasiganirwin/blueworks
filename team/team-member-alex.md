@@ -1,4 +1,4 @@
-# Bob
+# Alex
 
 ## Role
 QA Engineer
@@ -17,7 +17,7 @@ QA Engineer
 
 ## Contact
 - Email: bob@example.com
-- Slack: @bob
+- Slack: @alex
 
 ## Notes
 - Collaborates with QA Agent for automated tests
