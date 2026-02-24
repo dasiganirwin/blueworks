@@ -1,4 +1,4 @@
-# Jane
+# Lau
 
 ## Role
 Backend Developer
@@ -17,7 +17,7 @@ Backend Developer
 
 ## Contact
 - Email: jane@example.com
-- Slack: @jane
+- Slack: @lau
 
 ## Notes
 - Coordinates closely with Builder Agent for backend scaffolding

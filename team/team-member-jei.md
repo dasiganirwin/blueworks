@@ -1,4 +1,4 @@
-# Alex
+# Jei
 
 ## Role
 Frontend Developer
@@ -17,7 +17,7 @@ Frontend Developer
 
 ## Contact
 - Email: alex@example.com
-- Slack: @alex
+- Slack: @jei
 
 ## Notes
 - Works closely with Irwin for UX alignment
