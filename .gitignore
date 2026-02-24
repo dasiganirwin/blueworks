@@ -1,0 +1,28 @@
+# Dependencies
+node_modules/
+
+# OS
+.DS_Store
+
+# Claude local memory
+.claude/
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Next.js
+.next/
+out/
+
+# Build
+dist/
+build/
+
+# Logs
+*.log
+npm-debug.log*
+
+# Vercel
+.vercel
