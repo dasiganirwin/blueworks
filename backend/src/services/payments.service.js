@@ -96,9 +96,14 @@ async function handleWebhook(rawBody, signature) {
     const session  = event.data.object;
     const { job_id, customer_id } = session.metadata;
 
+    // Store the Payment Intent ID (not Session ID) so refunds work correctly
     const { data: payment } = await supabase
       .from('payments')
-      .update({ status: 'completed', paid_at: new Date().toISOString() })
+      .update({
+        status:                 'completed',
+        paid_at:                new Date().toISOString(),
+        gateway_transaction_id: session.payment_intent,
+      })
       .eq('job_id', job_id)
       .select()
       .single();
@@ -138,7 +143,8 @@ async function refund(paymentId, adminId, { amount, reason }) {
 
   let gateway_refund_id = null;
 
-  if (payment.gateway_transaction_id && payment.method === 'card') {
+  // gateway_transaction_id holds the Payment Intent ID after checkout.session.completed webhook fires
+  if (payment.gateway_transaction_id && payment.method === 'card' && payment.status === 'completed') {
     const refundObj = await stripe.refunds.create({
       payment_intent: payment.gateway_transaction_id,
       amount:         Math.round(amount * 100),

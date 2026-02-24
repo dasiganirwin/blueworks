@@ -10,7 +10,7 @@ const router = Router();
 
 const initiateSchema = z.object({
   job_id:   z.string().uuid(),
-  method:   z.enum(['card', 'gcash', 'maya', 'cash']),
+  method:   z.enum(['card', 'cash']),
   amount:   z.number().positive(),
   currency: z.string().length(3).default('PHP'),
 });

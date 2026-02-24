@@ -9,8 +9,10 @@ const ctrl = require('../controllers/jobs.controller');
 const router = Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024, files: 5 } });
 
+const VALID_CATEGORIES = ['plumber','electrician','carpenter','welder','painter','aircon-tech','mason','general'];
+
 const createJobSchema = z.object({
-  category:    z.string(),
+  category:    z.enum(VALID_CATEGORIES),
   description: z.string().min(10).max(2000),
   location: z.object({
     address: z.string(),

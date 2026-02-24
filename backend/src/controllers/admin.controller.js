@@ -27,7 +27,6 @@ const updateWorker = async (req, res, next) => {
     if (!user || user.role !== 'worker') return next(Errors.NOT_FOUND('worker'));
 
     const updates = { status };
-    if (status === 'active') updates.approved_at = new Date().toISOString();
 
     const { data: updated, error } = await supabase.from('users').update(updates).eq('id', req.params.id).select().single();
     if (error) throw error;

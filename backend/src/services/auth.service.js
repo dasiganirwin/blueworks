@@ -2,6 +2,7 @@ const crypto = require('crypto');
 const bcrypt = require('bcrypt');
 const supabase = require('../config/supabase');
 const resend = require('../config/resend');
+const { sendOTPSMS } = require('../config/sms');
 const { signAccess, signRefresh, verifyRefresh } = require('../utils/jwt');
 const { generateOTP, hashOTP, verifyOTP } = require('../utils/otp');
 const { Errors } = require('../utils/errors');
@@ -68,14 +69,19 @@ async function sendOTP(phone) {
   const { data: user } = await supabase.from('users').select('id').eq('phone', phone).maybeSingle();
   if (!user) throw Errors.NOT_FOUND('user');
 
+  // Purge used or expired OTP codes for this phone before inserting a new one
+  await supabase.from('otp_codes')
+    .delete()
+    .eq('phone', phone)
+    .or(`used.eq.true,expires_at.lt.${new Date().toISOString()}`);
+
   const otp        = generateOTP();
   const code_hash  = await hashOTP(otp);
   const expires_at = new Date(Date.now() + 5 * 60 * 1000).toISOString();
 
   await supabase.from('otp_codes').insert({ phone, code_hash, expires_at });
 
-  // TODO: Replace with real SMS provider (Twilio / Semaphore)
-  console.log(`[OTP] ${phone} → ${otp}`);
+  await sendOTPSMS(phone, otp);
 
   return { message: 'OTP sent.', expires_in: 300 };
 }

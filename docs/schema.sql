@@ -209,7 +209,7 @@ CREATE TABLE jobs (
         urgency = 'immediate' OR scheduled_at IS NOT NULL
     ),
     CONSTRAINT chk_worker_on_accept CHECK (
-        status = 'pending' OR worker_id IS NOT NULL
+        status IN ('pending', 'cancelled') OR worker_id IS NOT NULL
     )
 );
 

@@ -1,5 +1,5 @@
 const supabase = require('../config/supabase');
-const { Errors } = require('../utils/errors');
+const { AppError, Errors } = require('../utils/errors');
 const { broadcast } = require('../websocket');
 const notificationsService = require('./notifications.service');
 
@@ -7,7 +7,8 @@ const notificationsService = require('./notifications.service');
 const TRANSITIONS = {
   worker:   { pending: 'accepted', accepted: 'en_route', en_route: 'in_progress', in_progress: 'completed' },
   customer: { pending: 'cancelled', accepted: 'cancelled' },
-  admin:    {},
+  // Admin can force-cancel any non-final job (e.g. during dispute resolution)
+  admin:    { pending: 'cancelled', accepted: 'cancelled', en_route: 'cancelled', in_progress: 'cancelled', disputed: 'cancelled' },
 };
 
 // Timestamp field per status
@@ -64,7 +65,8 @@ async function listJobs(userId, role, { status, category, page = 1, limit = 20 }
     .range((page - 1) * limit, page * limit - 1);
 
   if (role === 'customer') query = query.eq('customer_id', userId);
-  if (role === 'worker')   query = query.or(`worker_id.eq.${userId},status.eq.pending`);
+  // Workers see only jobs assigned to them; they discover new pending jobs via /jobs/nearby
+  if (role === 'worker')   query = query.eq('worker_id', userId);
   if (status)   query = query.eq('status', status);
   if (category) query = query.eq('category', category);
 
@@ -141,7 +143,11 @@ async function updateStatus(jobId, userId, role, newStatus) {
     .select()
     .single();
 
-  if (error) throw error;
+  if (error) {
+    // PostgreSQL check constraint violation — surface a clear 400 instead of raw 500
+    if (error.code === '23514') throw Errors.VALIDATION_ERROR('Status update not permitted in the current job state.');
+    throw new AppError(500, 'DB_ERROR', error.message ?? 'Failed to update job status.');
+  }
 
   await supabase.from('job_status_history').insert({
     job_id:      jobId,
@@ -175,18 +181,17 @@ async function updateStatus(jobId, userId, role, newStatus) {
 async function uploadPhotos(jobId, userId, files) {
   if (!files?.length) throw Errors.VALIDATION_ERROR('No files uploaded.');
 
-  const supabaseStorage = require('../config/supabase');
   const urls = [];
 
   for (const file of files) {
     const path = `jobs/${jobId}/${Date.now()}-${file.originalname}`;
-    const { error } = await supabaseStorage.storage
+    const { error } = await supabase.storage
       .from(process.env.STORAGE_BUCKET)
       .upload(path, file.buffer, { contentType: file.mimetype });
 
     if (error) throw error;
 
-    const { data: { publicUrl } } = supabaseStorage.storage
+    const { data: { publicUrl } } = supabase.storage
       .from(process.env.STORAGE_BUCKET)
       .getPublicUrl(path);
 

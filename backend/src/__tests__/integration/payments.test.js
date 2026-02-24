@@ -9,35 +9,45 @@ const { makeToken, makeWorkerToken, makeAdminToken, authHeader } = require('../h
 const JOB_UUID = '00000000-0000-0000-0000-000000000001';
 
 const PAYMENT = {
-  id: 'pay-001', job_id: JOB_UUID, method: 'gcash', amount: 850,
-  currency: 'PHP', status: 'pending', payment_url: null,
+  id: 'pay-001', job_id: JOB_UUID, method: 'card', amount: 850,
+  currency: 'PHP', status: 'pending', payment_url: 'https://checkout.stripe.com/pay/cs_test_abc',
 };
 
 describe('POST /api/v1/payments', () => {
   beforeEach(() => jest.clearAllMocks());
 
-  it('201 — customer initiates payment', async () => {
+  it('201 — customer initiates card payment', async () => {
     paymentsService.initiatePayment.mockResolvedValue(PAYMENT);
 
     const res = await request(app)
       .post('/api/v1/payments')
       .set(authHeader(makeToken()))
-      .send({ job_id: JOB_UUID, method: 'gcash', amount: 850, currency: 'PHP' });
+      .send({ job_id: JOB_UUID, method: 'card', amount: 850, currency: 'PHP' });
 
     expect(res.status).toBe(201);
-    expect(res.body.method).toBe('gcash');
+    expect(res.body.method).toBe('card');
   });
 
   it('400 — missing job_id', async () => {
     const res = await request(app)
       .post('/api/v1/payments')
       .set(authHeader(makeToken()))
-      .send({ method: 'gcash', amount: 850 });
+      .send({ method: 'card', amount: 850 });
 
     expect(res.status).toBe(400);
   });
 
-  it('400 — invalid method', async () => {
+  it('400 — invalid method (gcash removed from MVP)', async () => {
+    const res = await request(app)
+      .post('/api/v1/payments')
+      .set(authHeader(makeToken()))
+      .send({ job_id: JOB_UUID, method: 'gcash', amount: 850 });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('VALIDATION_ERROR');
+  });
+
+  it('400 — invalid method (bitcoin)', async () => {
     const res = await request(app)
       .post('/api/v1/payments')
       .set(authHeader(makeToken()))
@@ -52,7 +62,7 @@ describe('POST /api/v1/payments', () => {
     const res = await request(app)
       .post('/api/v1/payments')
       .set(authHeader(makeToken()))
-      .send({ job_id: JOB_UUID, method: 'gcash', amount: 850, currency: 'PHP' });
+      .send({ job_id: JOB_UUID, method: 'card', amount: 850, currency: 'PHP' });
 
     expect(res.status).toBe(400);
     expect(res.body.error.code).toBe('JOB_NOT_COMPLETED');
@@ -73,7 +83,7 @@ describe('POST /api/v1/payments', () => {
     const res = await request(app)
       .post('/api/v1/payments')
       .set(authHeader(makeWorkerToken()))
-      .send({ job_id: JOB_UUID, method: 'gcash', amount: 850, currency: 'PHP' });
+      .send({ job_id: JOB_UUID, method: 'card', amount: 850, currency: 'PHP' });
 
     expect(res.status).toBe(403);
   });

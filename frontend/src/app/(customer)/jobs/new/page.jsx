@@ -13,10 +13,13 @@ export default function NewJobPage() {
     category:    params.get('category') ?? 'plumber',
     description: '',
     address:     '',
+    lat:         '',
+    lng:         '',
     urgency:     'immediate',
     scheduled_at:'',
   });
   const [photos, setPhotos]   = useState([]);
+  const [photoError, setPhotoError] = useState('');
   const [error, setError]     = useState('');
   const [loading, setLoading] = useState(false);
   const router = useRouter();
@@ -25,14 +28,18 @@ export default function NewJobPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (photoError) return;
     setError('');
     setLoading(true);
     try {
-      // Geocode address — using dummy coords for MVP
       const body = {
         category:    form.category,
         description: form.description,
-        location:    { address: form.address, lat: 14.5995, lng: 120.9842 },
+        location: {
+          address: form.address,
+          lat:     parseFloat(form.lat) || 14.5995,
+          lng:     parseFloat(form.lng) || 120.9842,
+        },
         urgency:     form.urgency,
         ...(form.urgency === 'scheduled' && { scheduled_at: form.scheduled_at }),
       };
@@ -79,6 +86,27 @@ export default function NewJobPage() {
           placeholder="123 Rizal St, Makati City"
           required
         />
+        <div className="grid grid-cols-2 gap-3">
+          <Input
+            label="Latitude"
+            type="number"
+            step="any"
+            value={form.lat}
+            onChange={set('lat')}
+            placeholder="e.g. 14.5995"
+          />
+          <Input
+            label="Longitude"
+            type="number"
+            step="any"
+            value={form.lng}
+            onChange={set('lng')}
+            placeholder="e.g. 120.9842"
+          />
+        </div>
+        <p className="text-xs text-gray-400 -mt-2">
+          Open Google Maps, right-click your address, and copy the coordinates. Leave blank to use Manila city center.
+        </p>
         <Select
           label="Urgency"
           value={form.urgency}
@@ -99,14 +127,27 @@ export default function NewJobPage() {
         )}
 
         <div>
-          <label className="text-sm font-medium text-gray-700 block mb-1">Photos (optional, max 5)</label>
+          <label className="text-sm font-medium text-gray-700 block mb-1">Photos (optional, max 5 · 5MB each)</label>
           <input
             type="file"
             accept="image/*"
             multiple
-            onChange={(e) => setPhotos(Array.from(e.target.files).slice(0, 5))}
+            onChange={(e) => {
+              const MAX_SIZE = 5 * 1024 * 1024;
+              const selected = Array.from(e.target.files).slice(0, 5);
+              const oversized = selected.filter(f => f.size > MAX_SIZE);
+              if (oversized.length) {
+                setPhotoError(`${oversized.map(f => f.name).join(', ')} exceed${oversized.length === 1 ? 's' : ''} the 5MB limit.`);
+                setPhotos([]);
+                e.target.value = '';
+              } else {
+                setPhotoError('');
+                setPhotos(selected);
+              }
+            }}
             className="text-sm text-gray-600 file:mr-3 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-sm file:bg-brand-50 file:text-brand-700 hover:file:bg-brand-100"
           />
+          {photoError && <p className="text-xs text-red-600 mt-1">{photoError}</p>}
           {photos.length > 0 && <p className="text-xs text-gray-400 mt-1">{photos.length} photo(s) selected</p>}
         </div>
 

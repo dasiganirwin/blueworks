@@ -6,19 +6,25 @@ let mockWS;
 beforeEach(() => {
   localStorage.clear();
   mockWS = {
-    send:      jest.fn(),
-    close:     jest.fn(),
-    onopen:    null,
-    onmessage: null,
-    onclose:   null,
-    onerror:   null,
-    readyState: 1,
+    send:       jest.fn(),
+    close:      jest.fn(),
+    onopen:     null,
+    onmessage:  null,
+    onclose:    null,
+    onerror:    null,
+    readyState: 1, // OPEN
   };
-  global.WebSocket = jest.fn(() => mockWS);
+  global.WebSocket            = jest.fn(() => mockWS);
+  global.WebSocket.CONNECTING = 0;
+  global.WebSocket.OPEN       = 1;
+  global.WebSocket.CLOSING    = 2;
+  global.WebSocket.CLOSED     = 3;
+  global.fetch = jest.fn();
 });
 
 afterEach(() => {
   delete global.WebSocket;
+  delete global.fetch;
 });
 
 describe('useWebSocket', () => {
@@ -71,6 +77,30 @@ describe('useWebSocket', () => {
     );
   });
 
+  it('queues subscribeToJob message while CONNECTING and flushes on open', () => {
+    localStorage.setItem('access_token', 'tok');
+    mockWS.readyState = 0; // CONNECTING
+
+    const { result } = renderHook(() => useWebSocket());
+
+    act(() => {
+      result.current.subscribeToJob('job-queued');
+    });
+
+    // Not sent yet — still connecting
+    expect(mockWS.send).not.toHaveBeenCalled();
+
+    // Simulate WebSocket opening
+    act(() => {
+      mockWS.readyState = 1;
+      mockWS.onopen();
+    });
+
+    expect(mockWS.send).toHaveBeenCalledWith(
+      JSON.stringify({ event: 'job.subscribe', payload: { job_id: 'job-queued' } })
+    );
+  });
+
   it('dispatches incoming messages to the correct handler', () => {
     localStorage.setItem('access_token', 'tok');
     const onStatus = jest.fn();
@@ -106,5 +136,76 @@ describe('useWebSocket', () => {
     });
 
     expect(handler).not.toHaveBeenCalled();
+  });
+
+  it('refreshes token and reconnects once on 4001 unauthorized close', async () => {
+    localStorage.setItem('access_token', 'expired-tok');
+    localStorage.setItem('refresh_token', 'valid-refresh');
+    process.env.NEXT_PUBLIC_WS_URL  = 'ws://localhost:4000';
+    process.env.NEXT_PUBLIC_API_URL = 'http://localhost:3000/api/v1';
+
+    const freshToken = 'fresh-access-tok';
+    global.fetch.mockResolvedValueOnce({
+      ok:   true,
+      json: () => Promise.resolve({ access_token: freshToken }),
+    });
+
+    renderHook(() => useWebSocket());
+
+    // Simulate server rejecting with 4001 (expired token)
+    await act(async () => {
+      await mockWS.onclose({ code: 4001 });
+    });
+
+    expect(global.fetch).toHaveBeenCalledWith(
+      expect.stringContaining('/auth/token/refresh'),
+      expect.objectContaining({ method: 'POST' })
+    );
+    expect(localStorage.getItem('access_token')).toBe(freshToken);
+    // Second WebSocket created with fresh token
+    expect(global.WebSocket).toHaveBeenCalledTimes(2);
+    expect(global.WebSocket).toHaveBeenLastCalledWith(
+      expect.stringContaining(freshToken)
+    );
+  });
+
+  it('does not reconnect on 4001 when refresh_token is missing', async () => {
+    localStorage.setItem('access_token', 'expired-tok');
+    // No refresh_token set
+    renderHook(() => useWebSocket());
+
+    await act(async () => {
+      await mockWS.onclose({ code: 4001 });
+    });
+
+    expect(global.fetch).not.toHaveBeenCalled();
+    expect(global.WebSocket).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not retry 4001 more than once', async () => {
+    localStorage.setItem('access_token', 'expired-tok');
+    localStorage.setItem('refresh_token', 'valid-refresh');
+    process.env.NEXT_PUBLIC_API_URL = 'http://localhost:3000/api/v1';
+
+    const freshToken = 'fresh-access-tok';
+    global.fetch.mockResolvedValue({
+      ok:   true,
+      json: () => Promise.resolve({ access_token: freshToken }),
+    });
+
+    renderHook(() => useWebSocket());
+
+    // First 4001 — should retry
+    await act(async () => {
+      await mockWS.onclose({ code: 4001 });
+    });
+    // Second 4001 on the new connection — should NOT retry again
+    await act(async () => {
+      await mockWS.onclose({ code: 4001 });
+    });
+
+    // fetch called only once (the first retry)
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+    expect(global.WebSocket).toHaveBeenCalledTimes(2);
   });
 });

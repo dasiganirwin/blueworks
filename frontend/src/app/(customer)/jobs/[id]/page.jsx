@@ -16,8 +16,11 @@ export default function CustomerJobDetailPage() {
   const [job, setJob]               = useState(null);
   const [loading, setLoading]       = useState(true);
   const [cancelModal, setCancelModal] = useState(false);
+  const [cancelError, setCancelError] = useState('');
   const [payModal, setPayModal]     = useState(false);
-  const [payMethod, setPayMethod]   = useState('gcash');
+  const [payMethod, setPayMethod]   = useState('card');
+  const [payAmount, setPayAmount]   = useState('');
+  const [payError, setPayError]     = useState('');
   const [processing, setProcessing] = useState(false);
 
   const { subscribeToJob } = useWebSocket({
@@ -37,22 +40,33 @@ export default function CustomerJobDetailPage() {
   }, [id]);
 
   const cancelJob = async () => {
+    setCancelError('');
     setProcessing(true);
     try {
       const { data } = await jobsApi.updateStatus(id, 'cancelled');
       setJob(data);
       setCancelModal(false);
+    } catch (err) {
+      setCancelError(err.response?.data?.error?.message ?? 'Failed to cancel. Please try again.');
     } finally {
       setProcessing(false);
     }
   };
 
   const initiatePayment = async () => {
+    setPayError('');
+    const amount = parseFloat(payAmount);
+    if (!payAmount || isNaN(amount) || amount <= 0) {
+      setPayError('Please enter a valid amount.');
+      return;
+    }
     setProcessing(true);
     try {
-      const { data } = await paymentsApi.initiate({ job_id: id, method: payMethod, amount: 850, currency: 'PHP' });
+      const { data } = await paymentsApi.initiate({ job_id: id, method: payMethod, amount, currency: 'PHP' });
       if (data.payment_url) window.location.href = data.payment_url;
       else setPayModal(false);
+    } catch (err) {
+      setPayError(err.response?.data?.error?.message ?? 'Payment failed. Please try again.');
     } finally {
       setProcessing(false);
     }
@@ -74,19 +88,28 @@ export default function CustomerJobDetailPage() {
         <Badge status={job.status} />
       </div>
 
-      {/* Status timeline */}
+      {/* Status timeline — show pill for terminal non-standard statuses */}
       <Card>
-        <div className="flex items-center gap-2 flex-wrap">
-          {['pending','accepted','en_route','in_progress','completed'].map((s, i, arr) => (
-            <div key={s} className="flex items-center gap-1">
-              <div className={`w-2 h-2 rounded-full ${STATUS_ORDER.indexOf(job.status) >= i ? 'bg-brand-600' : 'bg-gray-200'}`} />
-              <span className={`text-xs ${STATUS_ORDER.indexOf(job.status) >= i ? 'text-brand-700 font-medium' : 'text-gray-400'}`}>
-                {s.replace('_', ' ')}
-              </span>
-              {i < arr.length - 1 && <span className="text-gray-200 text-xs">→</span>}
-            </div>
-          ))}
-        </div>
+        {['cancelled', 'disputed'].includes(job.status) ? (
+          <div className="flex items-center gap-2">
+            <div className={`w-2 h-2 rounded-full ${job.status === 'cancelled' ? 'bg-gray-400' : 'bg-yellow-500'}`} />
+            <span className={`text-xs font-medium capitalize ${job.status === 'cancelled' ? 'text-gray-500' : 'text-yellow-700'}`}>
+              {job.status}
+            </span>
+          </div>
+        ) : (
+          <div className="flex items-center gap-2 flex-wrap">
+            {STATUS_ORDER.map((s, i, arr) => (
+              <div key={s} className="flex items-center gap-1">
+                <div className={`w-2 h-2 rounded-full ${STATUS_ORDER.indexOf(job.status) >= i ? 'bg-brand-600' : 'bg-gray-200'}`} />
+                <span className={`text-xs ${STATUS_ORDER.indexOf(job.status) >= i ? 'text-brand-700 font-medium' : 'text-gray-400'}`}>
+                  {s.replace('_', ' ')}
+                </span>
+                {i < arr.length - 1 && <span className="text-gray-200 text-xs">→</span>}
+              </div>
+            ))}
+          </div>
+        )}
       </Card>
 
       {/* Worker info */}
@@ -123,24 +146,42 @@ export default function CustomerJobDetailPage() {
       )}
 
       {/* Cancel modal */}
-      <Modal isOpen={cancelModal} title="Cancel Job?" onClose={() => setCancelModal(false)}>
+      <Modal isOpen={cancelModal} title="Cancel Job?" onClose={() => { setCancelModal(false); setCancelError(''); }}>
         <p className="text-sm text-gray-600 mb-4">Are you sure you want to cancel this job?</p>
+        {cancelError && (
+          <div className="bg-red-50 border border-red-200 text-red-700 text-sm px-3 py-2 rounded-lg mb-3">{cancelError}</div>
+        )}
         <div className="flex gap-3">
-          <Button variant="secondary" className="flex-1" onClick={() => setCancelModal(false)}>Keep Job</Button>
+          <Button variant="secondary" className="flex-1" onClick={() => { setCancelModal(false); setCancelError(''); }}>Keep Job</Button>
           <Button variant="danger" className="flex-1" loading={processing} onClick={cancelJob}>Yes, Cancel</Button>
         </div>
       </Modal>
 
       {/* Payment modal */}
-      <Modal isOpen={payModal} title="Pay for Job" onClose={() => setPayModal(false)}>
+      <Modal isOpen={payModal} title="Pay for Job" onClose={() => { setPayModal(false); setPayError(''); setPayAmount(''); }}>
         <div className="space-y-3">
+          <div>
+            <label className="text-sm font-medium text-gray-700 block mb-1">Amount (₱)</label>
+            <input
+              type="number"
+              min="1"
+              step="0.01"
+              placeholder="e.g. 850"
+              value={payAmount}
+              onChange={(e) => setPayAmount(e.target.value)}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
+            />
+          </div>
           <p className="text-sm text-gray-600">Choose payment method:</p>
-          {['gcash','maya','card','cash'].map(m => (
+          {['card', 'cash'].map(m => (
             <label key={m} className="flex items-center gap-3 p-3 border rounded-lg cursor-pointer hover:border-brand-400">
               <input type="radio" name="method" value={m} checked={payMethod === m} onChange={() => setPayMethod(m)} />
-              <span className="capitalize text-sm font-medium">{m}</span>
+              <span className="capitalize text-sm font-medium">{m === 'card' ? 'Card (Stripe)' : 'Cash on Service'}</span>
             </label>
           ))}
+          {payError && (
+            <div className="bg-red-50 border border-red-200 text-red-700 text-sm px-3 py-2 rounded-lg">{payError}</div>
+          )}
           <Button className="w-full mt-2" loading={processing} onClick={initiatePayment}>Confirm Payment</Button>
         </div>
       </Modal>

@@ -1,19 +1,26 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuthContext } from '@/context/AuthContext';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 
+const ROLE_REDIRECT = { customer: '/dashboard', worker: '/worker/dashboard', admin: '/admin/dashboard' };
+
 export default function LoginPage() {
   const [form, setForm]     = useState({ identifier: '', password: '' });
   const [error, setError]   = useState('');
   const [loading, setLoading] = useState(false);
-  const { login } = useAuthContext();
+  const { user, loading: authLoading, login } = useAuthContext();
   const router    = useRouter();
 
-  const ROLE_REDIRECT = { customer: '/dashboard', worker: '/worker/dashboard', admin: '/admin/dashboard' };
+  // Redirect already-authenticated users to their dashboard
+  useEffect(() => {
+    if (!authLoading && user) {
+      router.replace(ROLE_REDIRECT[user.role] ?? '/');
+    }
+  }, [user, authLoading, router]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();

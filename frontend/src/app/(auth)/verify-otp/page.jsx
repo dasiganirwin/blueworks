@@ -20,6 +20,10 @@ export default function VerifyOTPPage() {
   const router  = useRouter();
 
   useEffect(() => {
+    if (!phone) router.replace('/register');
+  }, [phone, router]);
+
+  useEffect(() => {
     if (countdown <= 0) return;
     const t = setTimeout(() => setCountdown(c => c - 1), 1000);
     return () => clearTimeout(t);
