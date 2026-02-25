@@ -16,9 +16,13 @@ export default function NearbyJobsPage() {
   const router = useRouter();
 
   useWebSocket({
-    // Normalize the broadcast payload so JobCard always gets a valid job object
+    // Only prepend if it matches the active category filter
     'job.created': (payload) => {
-      setJobs(prev => [{ ...payload, id: payload.id ?? payload.job_id }, ...prev]);
+      const job = { ...payload, id: payload.id ?? payload.job_id };
+      setJobs(prev => {
+        if (category !== 'all' && job.category !== category) return prev;
+        return [job, ...prev];
+      });
     },
   });
 
