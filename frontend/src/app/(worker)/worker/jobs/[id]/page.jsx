@@ -93,7 +93,8 @@ export default function WorkerJobDetailPage() {
     if (!next) return;
     setUpdating(true);
     try {
-      const { data } = await jobsApi.updateStatus(id, next);
+      await jobsApi.updateStatus(id, next);
+      const { data } = await jobsApi.getById(id);
       setJob(data);
     } finally {
       setUpdating(false);

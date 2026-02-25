@@ -27,6 +27,7 @@ export default function CustomerJobDetailPage() {
   const [payAmount, setPayAmount]   = useState('');
   const [payError, setPayError]     = useState('');
   const [processing, setProcessing] = useState(false);
+  const [paid, setPaid]             = useState(false);
 
   const { subscribeToJob } = useWebSocket({
     'job.status_changed': ({ job_id, status }) => {
@@ -69,8 +70,13 @@ export default function CustomerJobDetailPage() {
     setProcessing(true);
     try {
       const { data } = await paymentsApi.initiate({ job_id: id, method: payMethod, amount, currency: 'PHP' });
-      if (data.payment_url) window.location.href = data.payment_url;
-      else setPayModal(false);
+      if (data.payment_url) {
+        window.location.href = data.payment_url;
+      } else {
+        setPaid(true);
+        setPayModal(false);
+        showToast('Payment recorded. The worker will confirm cash receipt.', 'success');
+      }
     } catch (err) {
       setPayError(err.response?.data?.error?.message ?? 'Payment failed. Please try again.');
     } finally {
@@ -82,7 +88,7 @@ export default function CustomerJobDetailPage() {
   if (!job)    return <div className="page-container"><p className="text-gray-500">Job not found.</p></div>;
 
   const canCancel = ['pending', 'accepted'].includes(job.status);
-  const canPay    = job.status === 'completed';
+  const canPay    = job.status === 'completed' && !paid;
 
   return (
     <div className="page-container space-y-4">
@@ -166,6 +172,14 @@ export default function CustomerJobDetailPage() {
           <Button className="flex-1" onClick={() => setPayModal(true)}>
             Pay Now
           </Button>
+        )}
+        {paid && (
+          <div className="flex-1 flex items-center justify-center gap-2 py-2.5 px-4 bg-success-50 border border-success-200 rounded-lg text-success-700 text-sm font-medium">
+            <svg className="w-4 h-4 shrink-0" viewBox="0 0 12 12" fill="none">
+              <path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+            Payment submitted — awaiting worker confirmation
+          </div>
         )}
       </div>
 

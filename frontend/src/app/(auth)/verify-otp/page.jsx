@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { Suspense, useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { authApi } from '@/lib/api';
 import { useAuthContext } from '@/context/AuthContext';
@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/Button';
 
 const ROLE_REDIRECT = { customer: '/dashboard', worker: '/worker/dashboard' };
 
-export default function VerifyOTPPage() {
+function VerifyOTPContent() {
   const [otp, setOtp]           = useState('');
   const [error, setError]       = useState('');
   const [loading, setLoading]   = useState(false);
@@ -105,5 +105,13 @@ export default function VerifyOTPPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function VerifyOTPPage() {
+  return (
+    <Suspense>
+      <VerifyOTPContent />
+    </Suspense>
   );
 }

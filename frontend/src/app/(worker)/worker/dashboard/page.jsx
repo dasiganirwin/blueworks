@@ -18,10 +18,15 @@ export default function WorkerDashboard() {
 
   useEffect(() => {
     Promise.all([
-      jobsApi.list({ status: 'in_progress' }),
       jobsApi.list({ status: 'accepted' }),
-    ]).then(([inProg, accepted]) => {
-      setActiveJobs([...(inProg.data.data ?? []), ...(accepted.data.data ?? [])]);
+      jobsApi.list({ status: 'en_route' }),
+      jobsApi.list({ status: 'in_progress' }),
+    ]).then(([accepted, enRoute, inProg]) => {
+      setActiveJobs([
+        ...(accepted.data.data ?? []),
+        ...(enRoute.data.data ?? []),
+        ...(inProg.data.data ?? []),
+      ]);
     }).catch(() => { /* leave list empty on error */ })
       .finally(() => setLoading(false));
   }, []);
