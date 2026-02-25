@@ -12,7 +12,7 @@ export function JobChat({ jobId, currentUserId, readOnly = false }) {
 
   const { subscribeToJob } = useWebSocket({
     'message.received': ({ message }) => {
-      setMessages(prev => [...prev, message]);
+      setMessages(prev => prev.some(m => m.id === message.id) ? prev : [...prev, message]);
     },
   });
 
@@ -29,11 +29,14 @@ export function JobChat({ jobId, currentUserId, readOnly = false }) {
     e.preventDefault();
     if (!content.trim()) return;
     setSending(true);
+    const text = content.trim();
+    setContent('');
     try {
-      await jobsApi.sendMessage(jobId, content.trim());
-      setContent('');
+      const { data: message } = await jobsApi.sendMessage(jobId, text);
+      // Add immediately; WS broadcast deduplicates by id
+      setMessages(prev => prev.some(m => m.id === message.id) ? prev : [...prev, message]);
     } catch {
-      // silently ignore — message failed (e.g. job closed race condition)
+      setContent(text); // restore on failure
     } finally {
       setSending(false);
     }
