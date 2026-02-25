@@ -9,5 +9,6 @@ const uploadPhotos  = async (req, res, next) => { try { res.json(await svc.uploa
 const deleteJob     = async (req, res, next) => { try { await svc.deleteJob(req.params.id); res.sendStatus(204);                                                     } catch (e) { next(e); } };
 const getMessages   = async (req, res, next) => { try { res.json(await svc.getMessages(req.params.id, req.user.sub, req.user.role, req.query));                      } catch (e) { next(e); } };
 const sendMessage   = async (req, res, next) => { try { res.status(201).json(await svc.sendMessage(req.params.id, req.user.sub, req.user.role, req.body.content));   } catch (e) { next(e); } };
+const rejectJob     = async (req, res, next) => { try { await svc.rejectJob(req.params.id, req.user.sub); res.sendStatus(204);                                        } catch (e) { next(e); } };
 
-module.exports = { createJob, listJobs, getNearbyJobs, getJob, updateStatus, uploadPhotos, deleteJob, getMessages, sendMessage };
+module.exports = { createJob, listJobs, getNearbyJobs, getJob, updateStatus, uploadPhotos, deleteJob, getMessages, sendMessage, rejectJob };

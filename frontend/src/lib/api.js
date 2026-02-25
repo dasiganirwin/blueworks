@@ -70,6 +70,7 @@ export const jobsApi = {
   nearby:        (p)            => api.get('/jobs/nearby', { params: p }),
   getById:       (id)           => api.get(`/jobs/${id}`),
   updateStatus:  (id, status)   => api.patch(`/jobs/${id}/status`, { status }),
+  reject:        (id)           => api.post(`/jobs/${id}/reject`),
   uploadPhotos:  (id, formData) => api.post(`/jobs/${id}/photos`, formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
   getMessages:   (id, p)        => api.get(`/jobs/${id}/messages`, { params: p }),
   sendMessage:   (id, content)  => api.post(`/jobs/${id}/messages`, { content }),
@@ -87,6 +88,12 @@ export const notificationsApi = {
   list:       (p)  => api.get('/notifications', { params: p }),
   markRead:   (id) => api.patch(`/notifications/${id}/read`),
   markAllRead:()   => api.patch('/notifications/read-all'),
+};
+
+// ── Ratings ───────────────────────────────────────────────────
+export const ratingsApi = {
+  submit:      (jobId, body) => api.post(`/jobs/${jobId}/rating`, body),
+  getMyRating: (jobId)       => api.get(`/jobs/${jobId}/rating`),
 };
 
 // ── Disputes ─────────────────────────────────────────────────

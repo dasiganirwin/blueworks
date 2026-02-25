@@ -81,10 +81,10 @@ async function listJobs(userId, role, { status, category, page = 1, limit = 20 }
   return { data, meta: { page, limit, total: count } };
 }
 
-async function getNearbyJobs(workerId, { lat, lng, radius = 10, page = 1, limit = 20 }) {
+async function getNearbyJobs(workerId, { lat, lng, radius = 10, page = 1, limit = 20, category }) {
   const delta = radius / 111;
 
-  const { data, count, error } = await supabase
+  let query = supabase
     .from('jobs')
     .select('*', { count: 'exact' })
     .eq('status', 'pending')
@@ -96,6 +96,9 @@ async function getNearbyJobs(workerId, { lat, lng, radius = 10, page = 1, limit 
     .order('created_at', { ascending: false })
     .range((page - 1) * limit, page * limit - 1);
 
+  if (category) query = query.eq('category', category);
+
+  const { data, count, error } = await query;
   if (error) throw error;
   return { data, meta: { page, limit, total: count } };
 }
@@ -249,4 +252,59 @@ async function sendMessage(jobId, senderId, role, content) {
   return message;
 }
 
-module.exports = { createJob, listJobs, getNearbyJobs, getJob, updateStatus, uploadPhotos, deleteJob, getMessages, sendMessage };
+async function rejectJob(jobId, workerId) {
+  const { data: job, error: fetchErr } = await supabase
+    .from('jobs')
+    .select('id, status, worker_id, customer_id, category, description, location_address, location_lat, location_lng, urgency, created_at')
+    .eq('id', jobId)
+    .maybeSingle();
+
+  if (fetchErr || !job) throw Errors.NOT_FOUND('job');
+  if (job.status !== 'accepted')   throw Errors.JOB_NOT_REJECTABLE();
+  if (job.worker_id !== workerId)  throw Errors.FORBIDDEN();
+
+  // Reset job to pending, clear worker assignment
+  const { error: updateErr } = await supabase
+    .from('jobs')
+    .update({ status: 'pending', worker_id: null, accepted_at: null })
+    .eq('id', jobId);
+
+  if (updateErr) throw updateErr;
+
+  await supabase.from('job_status_history').insert({
+    job_id:      jobId,
+    from_status: 'accepted',
+    to_status:   'pending',
+    changed_by:  workerId,
+  });
+
+  // Worker goes back online
+  await supabase.from('workers').update({ availability_status: 'online' }).eq('user_id', workerId);
+
+  // Notify customer
+  await notificationsService.send(
+    job.customer_id,
+    'job_rejected',
+    'Worker Unavailable',
+    'Your assigned worker could not take the job. We are finding another worker.',
+    { job_id: jobId }
+  );
+
+  // Re-broadcast job to nearby workers
+  broadcast('job.created', {
+    id:               job.id,
+    category:         job.category,
+    description:      job.description,
+    location_address: job.location_address,
+    location_lat:     job.location_lat,
+    location_lng:     job.location_lng,
+    urgency:          job.urgency,
+    status:           'pending',
+    created_at:       job.created_at,
+  });
+
+  // Notify customer's job detail page via WS
+  broadcast('job.status_changed', { job_id: jobId, status: 'pending' }, jobId);
+}
+
+module.exports = { createJob, listJobs, getNearbyJobs, getJob, updateStatus, uploadPhotos, deleteJob, getMessages, sendMessage, rejectJob };

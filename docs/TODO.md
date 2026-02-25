@@ -293,3 +293,124 @@ S2-01 + S2-03 + S2-05 + S2-08
 - `JobMap` component should be a shared component usable by both customer and worker pages.
 - Chat is text-only for MVP. No file attachments, no read receipts.
 - Suggested execution order for Jei: S2-05 → S2-08 → S2-01 → S2-03 → S2-04 → S2-07 → S2-02 → S2-06 → S2-09.
+
+---
+
+---
+
+# Sprint 3 — Trust, Payments & Marketplace Completion
+
+**Sprint Goal:** Close the remaining MVP gaps — ratings & reviews, worker job rejection, dispute filing UI, worker public profiles, job scheduling, and PWA mobile optimization. Stripe is deferred to Sprint 4.
+
+**Last Updated:** 2026-02-25 ✅ SPRINT COMPLETE
+**Managed by:** Orchestrator Agent
+
+---
+
+## Blockers — Resolve Before Execution
+
+| # | Blocker | Owner | Urgency |
+|---|---------|-------|---------|
+| B-11 | ~~Confirm `ratings` table exists in Supabase — if not, migration required before S3-01~~ | Lau | ✅ Resolved |
+
+---
+
+## Task Board
+
+### 🔴 HIGH PRIORITY
+
+| Task ID | Task | Owner | File(s) | Definition of Done | Status |
+|---------|------|-------|---------|-------------------|--------|
+| S3-01 | Ratings & Reviews — backend API | Lau | `backend/src/routes/`, `backend/src/services/` | `POST /jobs/:id/rating` stores rating (1–5) + optional comment; only callable once per party after job `completed`; updates worker's average rating in `workers` table | ✅ Done |
+| S3-02 | Ratings & Reviews — customer UI | Jei | `src/app/(customer)/jobs/[id]/page.jsx` | After job completes and payment submitted, show star rating widget (1–5) + optional comment; submit once; confirmation toast shown; rating widget hidden after submission | ✅ Done |
+| S3-03 | Ratings & Reviews — worker UI | Jei | `src/app/(worker)/worker/jobs/[id]/page.jsx` | After job completes, worker can rate the customer; same star widget; submit once; confirmation toast shown | ✅ Done |
+| S3-04 | Worker job rejection | Jei | `src/app/(worker)/worker/jobs/[id]/page.jsx` | Worker can reject a `pending` job with optional reason; job returns to `pending` with no worker assigned; customer notified via WS `job.status_changed` + in-app notification | ✅ Done |
+
+---
+
+### 🟡 MEDIUM PRIORITY
+
+| Task ID | Task | Owner | File(s) | Definition of Done | Status |
+|---------|------|-------|---------|-------------------|--------|
+| S3-05 | Dispute filing UI — customer | Jei | `src/app/(customer)/jobs/[id]/page.jsx` | Customer can file a dispute on `completed` jobs; form with reason text; calls `POST /disputes`; confirmation toast shown; button hidden after dispute filed | ✅ Done |
+| S3-06 | Worker public profile page — customer view | Jei | `src/app/(customer)/workers/[id]/page.jsx` | Shows worker name, skills, rating, completed jobs count; linked from assigned worker card on job detail page | ✅ Done |
+| S3-07 | PWA — make app installable on mobile | Jei | `frontend/next.config.js`, `frontend/public/manifest.json` | App passes PWA install criteria: manifest with icons, service worker registered, HTTPS; "Add to Home Screen" prompt works on iOS/Android Chrome | ✅ Done |
+| S3-08 | Job scheduling — book for later | Jei | `src/app/(customer)/jobs/new/page.jsx` | Optional date/time picker on job posting form; `scheduled_time` sent to backend; displayed on job detail page | ✅ Done |
+
+---
+
+### 🟢 LOW PRIORITY
+
+| Task ID | Task | Owner | File(s) | Definition of Done | Status |
+|---------|------|-------|---------|-------------------|--------|
+| S3-09 | Display worker rating on job cards and profile | Jei | `src/components/jobs/JobCard.jsx`, `src/components/workers/WorkerCard.jsx` | Star rating (e.g. ★ 4.8) visible on worker cards and profile; updates after new rating submitted | ✅ Done |
+| S3-10 | Worker skills/category filter on nearby jobs | Jei | `src/app/(worker)/worker/jobs/nearby/page.jsx` | Filter bar by category (Plumber, Electrician, etc.); passed to `GET /jobs/nearby`; persists during session | ✅ Done |
+| S3-11 | QA pass — ratings, rejection, disputes, PWA | Alex | All Sprint 3 files | Manual test of: full job flow with rating, worker rejection, dispute filing, PWA install; 0 console errors | ✅ Done |
+
+---
+
+## Deferred to Sprint 4
+
+| Task | Reason |
+|------|--------|
+| Stripe end-to-end webhook verification | Deprioritized by Irwin — credentials not yet provisioned |
+
+---
+
+## Dependency Chain
+
+```
+B-11 (ratings table exists)
+  └── S3-01 (ratings API — Lau)
+        ├── S3-02 (customer rating UI)
+        ├── S3-03 (worker rating UI)
+        └── S3-09 (display rating on cards)
+
+S3-04 (worker rejection) — independent
+S3-05 (dispute UI)       — independent (API already exists)
+S3-06 (worker profile)   — independent
+  └── S3-09 (show rating on profile)
+
+S3-07 (PWA)              — independent
+S3-08 (scheduling)       — independent
+S3-10 (category filter)  — independent
+
+S3-01 + S3-04 + S3-05 + S3-06
+  └── S3-11 (QA — runs last)
+```
+
+---
+
+## Risks
+
+| Risk | Severity | Mitigation |
+|------|----------|-----------|
+| Double-rating — same user submits rating twice | Medium | DB unique constraint on `(job_id, rater_id)`; API returns 409 on duplicate |
+| Worker rejection orphans job (no re-broadcast) | Medium | On reject, clear `worker_id`, reset to `pending`, re-broadcast `job.created` to nearby workers |
+| PWA service worker caches stale API responses | Low | Cache only static assets; never cache API routes |
+| Scheduling UX complexity | Low | Simple datetime picker only; no recurring jobs in MVP |
+
+---
+
+## Assignment Summary
+
+| Owner | Tasks |
+|-------|-------|
+| **Lau** | Resolve B-11, S3-01 (ratings API) |
+| **Jei** | S3-02, S3-03, S3-04, S3-05, S3-06, S3-07, S3-08, S3-09, S3-10 |
+| **Alex** | S3-11 (QA — runs last) |
+
+---
+
+## Suggested Execution Order (Jei)
+
+`S3-04 → S3-05 → S3-02 → S3-03 → S3-06 → S3-09 → S3-07 → S3-08 → S3-10`
+
+---
+
+## Notes
+
+- Stripe is deferred to Sprint 4. Cash payment flow remains active for MVP.
+- Ratings API must enforce: job must be `completed`, caller must be customer or worker on that job, one rating per party.
+- Worker rejection should re-broadcast the job to nearby workers so it doesn't disappear from the feed.
+- PWA icons required: 192x192 and 512x512 PNG in `/public/icons/`.

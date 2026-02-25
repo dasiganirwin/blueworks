@@ -1,9 +1,10 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { jobsApi } from '@/lib/api';
+import { jobsApi, ratingsApi } from '@/lib/api';
 import { useToast } from '@/components/ui/Toast';
+import { Modal } from '@/components/ui/Modal';
 import { useAuthContext } from '@/context/AuthContext';
 import { useWebSocket } from '@/hooks/useWebSocket';
 import { Badge } from '@/components/ui/Badge';
@@ -57,10 +58,18 @@ const ACTION_CONFIG = {
 
 export default function WorkerJobDetailPage() {
   const { id }   = useParams();
+  const router   = useRouter();
   const { user } = useAuthContext();
-  const [job, setJob]         = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [updating, setUpdating] = useState(false);
+  const [job, setJob]               = useState(null);
+  const [loading, setLoading]       = useState(true);
+  const [updating, setUpdating]     = useState(false);
+  const [rejectModal, setRejectModal] = useState(false);
+  const [rejecting, setRejecting]   = useState(false);
+  const [myRating, setMyRating]     = useState(null);
+  const [ratingValue, setRatingValue]     = useState(0);
+  const [ratingComment, setRatingComment] = useState('');
+  const [ratingSubmitting, setRatingSubmitting] = useState(false);
+  const [ratingDone, setRatingDone] = useState(false);
 
   const { showToast } = useToast();
   const { sendLocationPing, subscribeToJob } = useWebSocket({
@@ -75,6 +84,9 @@ export default function WorkerJobDetailPage() {
       .catch(() => setJob(null))
       .finally(() => setLoading(false));
     subscribeToJob(id);
+    ratingsApi.getMyRating(id).then(({ data }) => {
+      if (data) { setMyRating(data); setRatingDone(true); setRatingValue(data.rating); }
+    }).catch(() => {});
   }, [id]);
 
   // ── Broadcast worker location every 10s while en_route or in_progress ──────
@@ -93,6 +105,34 @@ export default function WorkerJobDetailPage() {
     const timer = setInterval(ping, 10_000);
     return () => clearInterval(timer);
   }, [job?.status, id, sendLocationPing]);
+
+  const submitRating = async () => {
+    if (!ratingValue) return;
+    setRatingSubmitting(true);
+    try {
+      await ratingsApi.submit(id, { rating: ratingValue, comment: ratingComment.trim() || undefined });
+      setRatingDone(true);
+      showToast('Thanks for your rating!', 'success');
+    } catch (err) {
+      showToast(err.response?.data?.error?.message ?? 'Failed to submit rating.', 'error');
+    } finally {
+      setRatingSubmitting(false);
+    }
+  };
+
+  const handleReject = async () => {
+    setRejecting(true);
+    try {
+      await jobsApi.reject(id);
+      showToast('Job rejected. The customer will be notified.', 'success');
+      router.push('/worker/jobs/nearby');
+    } catch (err) {
+      showToast(err.response?.data?.error?.message ?? 'Failed to reject job. Please try again.', 'error');
+    } finally {
+      setRejecting(false);
+      setRejectModal(false);
+    }
+  };
 
   const handleStatusUpdate = async () => {
     const next = NEXT_STATUS[job.status];
@@ -188,9 +228,64 @@ export default function WorkerJobDetailPage() {
         );
       })()}
 
+      {/* Rate the customer */}
+      {job.status === 'completed' && (
+        <div className="bg-white border border-gray-200 rounded-xl p-4 space-y-3">
+          <p className="text-sm font-semibold text-gray-900">
+            {ratingDone ? 'Your Rating' : 'Rate the Customer'}
+          </p>
+          <div className="flex gap-1">
+            {[1,2,3,4,5].map(star => (
+              <button
+                key={star}
+                type="button"
+                disabled={ratingDone}
+                onClick={() => !ratingDone && setRatingValue(star)}
+                className={`text-2xl transition-colors ${star <= ratingValue ? 'text-yellow-400' : 'text-gray-300'} ${!ratingDone ? 'hover:text-yellow-300' : ''}`}
+              >★</button>
+            ))}
+          </div>
+          {!ratingDone && (
+            <>
+              <textarea
+                value={ratingComment}
+                onChange={e => setRatingComment(e.target.value)}
+                placeholder="Leave a comment (optional)…"
+                rows={2}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-brand-500 resize-none"
+              />
+              <Button className="w-full" size="sm" loading={ratingSubmitting} disabled={!ratingValue} onClick={submitRating}>
+                Submit Rating
+              </Button>
+            </>
+          )}
+          {ratingDone && myRating?.comment && (
+            <p className="text-sm text-gray-500 italic">"{myRating.comment}"</p>
+          )}
+        </div>
+      )}
+
+      {/* Reject job — only available before going en_route */}
+      {job.status === 'accepted' && (
+        <Button variant="outline" className="w-full text-danger-600 border-danger-200 hover:bg-danger-50" onClick={() => setRejectModal(true)}>
+          Reject Job
+        </Button>
+      )}
+
       {['accepted','en_route','in_progress','completed'].includes(job.status) && (
         <JobChat jobId={id} currentUserId={user?.id} readOnly={['completed','cancelled'].includes(job.status)} />
       )}
+
+      {/* Reject confirmation modal */}
+      <Modal isOpen={rejectModal} title="Reject this job?" onClose={() => setRejectModal(false)}>
+        <p className="text-sm text-gray-600 mb-4">
+          Are you sure you want to reject this job? The customer will be notified and the job will be made available to other workers.
+        </p>
+        <div className="flex gap-3">
+          <Button variant="secondary" className="flex-1" onClick={() => setRejectModal(false)}>Keep Job</Button>
+          <Button variant="danger" className="flex-1" loading={rejecting} onClick={handleReject}>Yes, Reject</Button>
+        </div>
+      </Modal>
     </div>
   );
 }

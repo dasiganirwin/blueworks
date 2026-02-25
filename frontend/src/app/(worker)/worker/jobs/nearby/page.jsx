@@ -6,10 +6,13 @@ import { JobCard } from '@/components/jobs/JobCard';
 import { Button } from '@/components/ui/Button';
 import { useWebSocket } from '@/hooks/useWebSocket';
 
+const CATEGORIES = ['all','plumber','electrician','carpenter','welder','painter','aircon-tech','mason','general'];
+
 export default function NearbyJobsPage() {
-  const [jobs, setJobs]       = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [coords, setCoords]   = useState(null);
+  const [jobs, setJobs]           = useState([]);
+  const [loading, setLoading]     = useState(true);
+  const [coords, setCoords]       = useState(null);
+  const [category, setCategory]   = useState('all');
   const router = useRouter();
 
   useWebSocket({
@@ -20,8 +23,9 @@ export default function NearbyJobsPage() {
   });
 
   useEffect(() => {
-    const fetchNearby = (lat, lng) => {
-      jobsApi.nearby({ lat, lng })
+    const fetchNearby = (lat, lng, cat = category) => {
+      const params = { lat, lng, ...(cat !== 'all' && { category: cat }) };
+      jobsApi.nearby(params)
         .then(({ data }) => setJobs(data.data ?? []))
         .catch(() => { /* leave list empty */ })
         .finally(() => setLoading(false));
@@ -45,21 +49,40 @@ export default function NearbyJobsPage() {
     );
   }, []);
 
-  const refresh = () => {
+  const refresh = (cat = category) => {
     setLoading(true);
     const lat = coords?.lat ?? 14.5995;
     const lng = coords?.lng ?? 120.9842;
-    jobsApi.nearby({ lat, lng })
-      .then(({ data }) => setJobs(data.data ?? []))
-      .catch(() => { /* leave list empty */ })
-      .finally(() => setLoading(false));
+    fetchNearby(lat, lng, cat);
+  };
+
+  const handleCategoryChange = (cat) => {
+    setCategory(cat);
+    refresh(cat);
   };
 
   return (
     <div className="page-container">
-      <div className="flex items-center justify-between mb-5">
+      <div className="flex items-center justify-between mb-4">
         <h1 className="text-xl font-bold text-gray-900">Nearby Jobs</h1>
-        <Button size="sm" variant="secondary" onClick={refresh}>Refresh</Button>
+        <Button size="sm" variant="secondary" onClick={() => refresh()}>Refresh</Button>
+      </div>
+
+      {/* Category filter */}
+      <div className="flex gap-2 overflow-x-auto pb-2 mb-4 scrollbar-hide">
+        {CATEGORIES.map(cat => (
+          <button
+            key={cat}
+            onClick={() => handleCategoryChange(cat)}
+            className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
+              category === cat
+                ? 'bg-brand-600 text-white border-brand-600'
+                : 'bg-white text-gray-600 border-gray-300 hover:border-brand-400'
+            }`}
+          >
+            {cat === 'all' ? 'All' : cat.charAt(0).toUpperCase() + cat.slice(1)}
+          </button>
+        ))}
       </div>
 
       {loading ? (
