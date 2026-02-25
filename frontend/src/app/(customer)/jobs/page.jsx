@@ -4,10 +4,9 @@ import { useRouter } from 'next/navigation';
 import { jobsApi } from '@/lib/api';
 import { JobCard } from '@/components/jobs/JobCard';
 import { Button } from '@/components/ui/Button';
-import { Select } from '@/components/ui/Input';
 
 const STATUS_OPTIONS = [
-  { value: '', label: 'All statuses' },
+  { value: '',            label: 'All' },
   { value: 'pending',     label: 'Pending' },
   { value: 'accepted',    label: 'Accepted' },
   { value: 'in_progress', label: 'In Progress' },
@@ -16,11 +15,11 @@ const STATUS_OPTIONS = [
 ];
 
 export default function JobsListPage() {
-  const [jobs, setJobs]           = useState([]);
-  const [status, setStatus]       = useState('');
-  const [loading, setLoading]     = useState(true);
-  const [page, setPage]           = useState(1);
-  const [total, setTotal]         = useState(0);
+  const [jobs, setJobs]       = useState([]);
+  const [status, setStatus]   = useState('');
+  const [loading, setLoading] = useState(true);
+  const [page, setPage]       = useState(1);
+  const [total, setTotal]     = useState(0);
   const router = useRouter();
   const LIMIT  = 10;
 
@@ -31,6 +30,8 @@ export default function JobsListPage() {
       .finally(() => setLoading(false));
   }, [status, page]);
 
+  const handleStatusChange = (val) => { setStatus(val); setPage(1); };
+
   return (
     <div className="page-container">
       <div className="flex items-center justify-between mb-5">
@@ -38,12 +39,21 @@ export default function JobsListPage() {
         <Button size="sm" onClick={() => router.push('/jobs/new')}>+ Post Job</Button>
       </div>
 
-      <div className="mb-4">
-        <Select
-          value={status}
-          onChange={(e) => { setStatus(e.target.value); setPage(1); }}
-          options={STATUS_OPTIONS}
-        />
+      {/* Status filter pills */}
+      <div className="flex gap-2 overflow-x-auto pb-2 mb-4 scrollbar-hide">
+        {STATUS_OPTIONS.map(({ value, label }) => (
+          <button
+            key={value}
+            onClick={() => handleStatusChange(value)}
+            className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
+              status === value
+                ? 'bg-brand-600 text-white border-brand-600'
+                : 'bg-white text-gray-600 border-gray-300 hover:border-brand-400'
+            }`}
+          >
+            {label}
+          </button>
+        ))}
       </div>
 
       {loading ? (

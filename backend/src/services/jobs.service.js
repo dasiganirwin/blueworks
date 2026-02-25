@@ -63,9 +63,14 @@ async function createJob(customerId, body) {
 }
 
 async function listJobs(userId, role, { status, category, page = 1, limit = 20 }) {
+  // Include dispute id so admin dispute list can resolve without a second lookup
+  const selectFields = role === 'admin'
+    ? '*, dispute:disputes(id)'
+    : '*';
+
   let query = supabase
     .from('jobs')
-    .select('*', { count: 'exact' })
+    .select(selectFields, { count: 'exact' })
     .order('created_at', { ascending: false })
     .range((page - 1) * limit, page * limit - 1);
 

@@ -7,10 +7,18 @@ import Link from 'next/link';
 export default function AdminDashboard() {
   const [analytics, setAnalytics] = useState(null);
   const [loading, setLoading]     = useState(true);
+  const [error, setError]         = useState(false);
 
-  useEffect(() => {
-    adminApi.getAnalytics().then(({ data }) => setAnalytics(data)).finally(() => setLoading(false));
-  }, []);
+  const fetchAnalytics = () => {
+    setLoading(true);
+    setError(false);
+    adminApi.getAnalytics()
+      .then(({ data }) => setAnalytics(data))
+      .catch(() => setError(true))
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(() => { fetchAnalytics(); }, []);
 
   const stats = [
     { label: 'Total Jobs',       value: analytics?.jobs?.total ?? '—',            color: 'text-gray-900' },
@@ -28,6 +36,16 @@ export default function AdminDashboard() {
       {loading ? (
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
           {[...Array(6)].map((_, i) => <div key={i} className="h-24 bg-gray-100 rounded-xl animate-pulse" />)}
+        </div>
+      ) : error ? (
+        <div className="flex flex-col items-center py-16 text-center gap-3">
+          <svg className="w-10 h-10 text-gray-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0zm-9 3.75h.008v.008H12v-.008z" />
+          </svg>
+          <p className="text-sm text-gray-500">Failed to load analytics.</p>
+          <button onClick={fetchAnalytics} className="text-sm text-brand-600 hover:underline font-medium">
+            Try again
+          </button>
         </div>
       ) : (
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-8">

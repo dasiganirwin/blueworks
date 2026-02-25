@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { adminApi, disputesApi } from '@/lib/api';
+import { adminApi, jobsApi } from '@/lib/api';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
@@ -17,42 +17,46 @@ const ACTION_OPTIONS = [
 
 export default function AdminDisputesPage() {
   const { showToast } = useToast();
-  const [disputes, setDisputes]   = useState([]);
-  const [loading, setLoading]     = useState(true);
+  const [disputes, setDisputes]     = useState([]);
+  const [loading, setLoading]       = useState(true);
   const [fetchError, setFetchError] = useState('');
-  const [selected, setSelected]   = useState(null);
+  const [selected, setSelected]     = useState(null);
   const [resolution, setResolution] = useState('');
-  const [action, setAction]       = useState('no_action');
+  const [action, setAction]         = useState('no_action');
   const [processing, setProcessing] = useState(false);
 
   const fetchDisputes = () => {
     setLoading(true);
     setFetchError('');
-    // Reuse jobs list filtered by disputed status for MVP
-    fetch(`${process.env.NEXT_PUBLIC_API_URL}/jobs?status=disputed`, {
-      headers: { Authorization: `Bearer ${localStorage.getItem('access_token')}` },
-    })
-      .then(r => {
-        if (!r.ok) throw new Error(`HTTP ${r.status}`);
-        return r.json();
-      })
-      .then(d => setDisputes(d.data ?? []))
+    jobsApi.list({ status: 'disputed' })
+      .then(({ data }) => setDisputes(data.data ?? []))
       .catch(() => setFetchError('Failed to load disputes. Please try again.'))
       .finally(() => setLoading(false));
   };
 
   useEffect(fetchDisputes, []);
 
+  const openResolve = (d) => {
+    setSelected(d);
+    setResolution('');
+    setAction('no_action');
+  };
+
   const resolve = async () => {
     if (!selected) return;
+    const disputeId = selected.dispute?.[0]?.id;
+    if (!disputeId) {
+      showToast('Dispute record not found for this job.', 'error');
+      return;
+    }
     setProcessing(true);
     try {
-      // Get the dispute for this job
-      const disputeRes = await disputesApi.getById(selected.dispute_id);
-      await adminApi.resolveDispute(disputeRes.data.id, { status: 'resolved', resolution, action });
+      await adminApi.resolveDispute(disputeId, { status: 'resolved', resolution, action });
       showToast('Dispute resolved successfully.', 'success');
       setSelected(null);
       fetchDisputes();
+    } catch {
+      showToast('Failed to resolve dispute. Please try again.', 'error');
     } finally {
       setProcessing(false);
     }
@@ -72,25 +76,30 @@ export default function AdminDisputesPage() {
           </button>
         </div>
       ) : disputes.length === 0 ? (
-        <div className="text-center py-16 text-gray-400">No open disputes.</div>
+        <div className="flex flex-col items-center py-16 text-center gap-3">
+          <svg className="w-10 h-10 text-gray-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+          </svg>
+          <p className="text-sm text-gray-500">No open disputes.</p>
+        </div>
       ) : (
         <div className="space-y-3">
           {disputes.map(d => (
             <div key={d.id} className="bg-white border border-gray-200 rounded-xl p-4 flex items-start justify-between gap-4">
-              <div className="flex-1">
-                <p className="text-xs text-gray-500 uppercase">{d.category}</p>
-                <p className="text-sm font-medium text-gray-900 mt-0.5">{d.description?.slice(0, 80)}</p>
-                <p className="text-xs text-gray-400 mt-1">{d.location_address}</p>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs text-gray-500 uppercase tracking-wide">{d.category}</p>
+                <p className="text-sm font-medium text-gray-900 mt-0.5 line-clamp-2">{d.description}</p>
+                <p className="text-xs text-gray-400 mt-1 truncate">{d.location_address}</p>
               </div>
-              <div className="flex flex-col items-end gap-2">
+              <div className="flex flex-col items-end gap-2 shrink-0">
                 <Badge status="disputed" />
                 <div className="flex gap-2">
-                  {d.dispute_id && (
-                    <Link href={`/admin/disputes/${d.dispute_id}`}>
+                  {d.dispute?.[0]?.id && (
+                    <Link href={`/admin/disputes/${d.dispute[0].id}`}>
                       <Button size="sm" variant="outline">View</Button>
                     </Link>
                   )}
-                  <Button size="sm" onClick={() => setSelected(d)}>Resolve</Button>
+                  <Button size="sm" onClick={() => openResolve(d)}>Resolve</Button>
                 </div>
               </div>
             </div>
@@ -100,7 +109,7 @@ export default function AdminDisputesPage() {
 
       <Modal isOpen={!!selected} title="Resolve Dispute" onClose={() => setSelected(null)}>
         <div className="space-y-3">
-          <p className="text-sm text-gray-600">Job: <span className="font-medium">{selected?.description?.slice(0,60)}</span></p>
+          <p className="text-sm text-gray-600">Job: <span className="font-medium">{selected?.description?.slice(0, 60)}{selected?.description?.length > 60 ? '…' : ''}</span></p>
           <Select label="Action" value={action} onChange={(e) => setAction(e.target.value)} options={ACTION_OPTIONS} />
           <Textarea label="Resolution notes" value={resolution} onChange={(e) => setResolution(e.target.value)} placeholder="Describe the resolution…" required />
           <div className="flex gap-3">

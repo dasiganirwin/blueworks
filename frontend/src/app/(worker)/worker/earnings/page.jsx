@@ -69,8 +69,10 @@ export default function EarningsPage() {
           </p>
         </Card>
         <Card>
-          <p className="text-xs text-gray-500">Currency</p>
-          <p className="text-2xl font-bold text-brand-600 mt-1">{data?.summary?.currency ?? 'PHP'}</p>
+          <p className="text-xs text-gray-500">Jobs Completed</p>
+          <p className="text-2xl font-bold text-brand-600 mt-1">
+            {(data?.data ?? []).filter(tx => tx.status === 'completed').length}
+          </p>
         </Card>
       </div>
 
@@ -139,7 +141,7 @@ export default function EarningsPage() {
                 <div>
                   <p className="text-sm font-medium">Job #{tx.job_id.slice(0, 8)}</p>
                   <p className="text-xs text-gray-400">
-                    {tx.method} · {formatDate(tx.paid_at)}
+                    {tx.method} · {formatDate(tx.paid_at ?? tx.created_at)}
                   </p>
                   {tx.status && tx.status !== 'completed' && (
                     <div className="mt-1">
