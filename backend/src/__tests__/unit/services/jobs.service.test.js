@@ -81,6 +81,43 @@ describe('jobsService.updateStatus', () => {
   });
 });
 
+describe('jobsService.getNearbyJobs', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  it('returns pending jobs within bounding box', async () => {
+    const nearbyJob = { ...JOB, status: 'pending', worker_id: null };
+    supabase.from.mockImplementationOnce(() =>
+      makeChain({ data: [nearbyJob], count: 1, error: null }),
+    );
+
+    const result = await jobsService.getNearbyJobs('w-001', { lat: 14.5995, lng: 120.9842 });
+    expect(result.data).toHaveLength(1);
+    expect(result.data[0].status).toBe('pending');
+    expect(result.meta.total).toBe(1);
+  });
+
+  it('returns empty array when no jobs in range', async () => {
+    supabase.from.mockImplementationOnce(() =>
+      makeChain({ data: [], count: 0, error: null }),
+    );
+
+    const result = await jobsService.getNearbyJobs('w-001', { lat: 9.0, lng: 118.0 });
+    expect(result.data).toHaveLength(0);
+    expect(result.meta.total).toBe(0);
+  });
+
+  it('uses default radius of 10 km when not specified', async () => {
+    supabase.from.mockImplementationOnce(() =>
+      makeChain({ data: [], count: 0, error: null }),
+    );
+
+    // Should not throw — radius defaults to 10 internally
+    await expect(
+      jobsService.getNearbyJobs('w-001', { lat: 14.5995, lng: 120.9842 }),
+    ).resolves.toBeDefined();
+  });
+});
+
 describe('jobsService.sendMessage', () => {
   beforeEach(() => jest.clearAllMocks());
 

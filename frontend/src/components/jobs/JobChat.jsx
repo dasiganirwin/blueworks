@@ -4,7 +4,7 @@ import { jobsApi } from '@/lib/api';
 import { useWebSocket } from '@/hooks/useWebSocket';
 import { Button } from '@/components/ui/Button';
 
-export function JobChat({ jobId, currentUserId }) {
+export function JobChat({ jobId, currentUserId, readOnly = false }) {
   const [messages, setMessages] = useState([]);
   const [content, setContent]   = useState('');
   const [sending, setSending]   = useState(false);
@@ -33,6 +33,8 @@ export function JobChat({ jobId, currentUserId }) {
       const { data } = await jobsApi.sendMessage(jobId, content.trim());
       setMessages(prev => [...prev, data]);
       setContent('');
+    } catch {
+      // silently ignore — message failed (e.g. job closed race condition)
     } finally {
       setSending(false);
     }
@@ -64,15 +66,19 @@ export function JobChat({ jobId, currentUserId }) {
         <div ref={bottomRef} />
       </div>
 
-      <form onSubmit={send} className="p-2 border-t flex gap-2">
-        <input
-          value={content}
-          onChange={(e) => setContent(e.target.value)}
-          placeholder="Type a message…"
-          className="flex-1 text-sm px-3 py-2 border border-gray-300 rounded-lg outline-none focus:border-brand-500"
-        />
-        <Button type="submit" size="sm" loading={sending} disabled={!content.trim()}>Send</Button>
-      </form>
+      {readOnly ? (
+        <div className="p-2 border-t text-center text-xs text-gray-400">Chat is closed for this job.</div>
+      ) : (
+        <form onSubmit={send} className="p-2 border-t flex gap-2">
+          <input
+            value={content}
+            onChange={(e) => setContent(e.target.value)}
+            placeholder="Type a message…"
+            className="flex-1 text-sm px-3 py-2 border border-gray-300 rounded-lg outline-none focus:border-brand-500"
+          />
+          <Button type="submit" size="sm" loading={sending} disabled={!content.trim()}>Send</Button>
+        </form>
+      )}
     </div>
   );
 }

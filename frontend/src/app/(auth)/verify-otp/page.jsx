@@ -61,12 +61,14 @@ export default function VerifyOTPPage() {
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
           <h1 className="text-2xl font-bold text-gray-900">Verify your phone</h1>
-          <p className="text-gray-500 text-sm mt-1">We sent a 6-digit code to <strong>{phone}</strong></p>
+          <p className="text-gray-500 text-sm mt-1">We sent a 6-digit code via SMS to <strong>{phone || 'your phone number'}</strong></p>
         </div>
 
         <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
           <form onSubmit={handleVerify} className="space-y-4">
+            <label htmlFor="otp-input" className="sr-only">Enter OTP code</label>
             <input
+              id="otp-input"
               type="text"
               inputMode="numeric"
               maxLength={6}
@@ -77,7 +79,7 @@ export default function VerifyOTPPage() {
             />
 
             {error && (
-              <div className="bg-red-50 border border-red-200 text-red-700 text-sm px-3 py-2 rounded-lg text-center">
+              <div role="alert" className="bg-red-50 border border-red-200 text-red-700 text-sm px-3 py-2 rounded-lg text-center">
                 {error}
               </div>
             )}

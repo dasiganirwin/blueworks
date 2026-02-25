@@ -46,12 +46,17 @@ async function createJob(customerId, body) {
     changed_by: customerId,
   });
 
-  // Notify nearby workers via WebSocket
+  // Notify nearby workers via WebSocket — include all fields JobCard needs
   broadcast('job.created', {
-    job_id:   job.id,
-    category: job.category,
-    location: { lat: job.location_lat, lng: job.location_lng },
-    urgency:  job.urgency,
+    id:               job.id,
+    category:         job.category,
+    description:      job.description,
+    location_address: job.location_address,
+    location_lat:     job.location_lat,
+    location_lng:     job.location_lng,
+    urgency:          job.urgency,
+    status:           'pending',
+    created_at:       job.created_at,
   });
 
   return job;
@@ -105,7 +110,10 @@ async function getJob(jobId, userId, role) {
   if (error || !job) throw Errors.NOT_FOUND('job');
 
   // Scope check: non-admins can only see their own jobs
-  if (role !== 'admin' && job.customer_id !== userId && job.worker_id !== userId) {
+  // Exception: workers can view any pending unassigned job (to decide whether to accept)
+  const isParticipant = job.customer_id === userId || job.worker_id === userId;
+  const isPendingForWorker = role === 'worker' && job.status === 'pending' && !job.worker_id;
+  if (role !== 'admin' && !isParticipant && !isPendingForWorker) {
     throw Errors.FORBIDDEN();
   }
 

@@ -175,6 +175,63 @@ describe('DELETE /api/v1/jobs/:id', () => {
   });
 });
 
+describe('GET /api/v1/jobs/nearby', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  it('200 — worker fetches nearby jobs', async () => {
+    jobsService.getNearbyJobs.mockResolvedValue({ data: [JOB], meta: { page: 1, limit: 20, total: 1 } });
+
+    const res = await request(app)
+      .get('/api/v1/jobs/nearby')
+      .query({ lat: 14.5995, lng: 120.9842 })
+      .set(authHeader(makeWorkerToken()));
+
+    expect(res.status).toBe(200);
+    expect(res.body.data).toHaveLength(1);
+    expect(res.body.data[0].status).toBe('pending');
+    expect(jobsService.getNearbyJobs).toHaveBeenCalledWith(
+      'worker-001',
+      expect.objectContaining({ lat: 14.5995, lng: 120.9842 }),
+    );
+  });
+
+  it('200 — returns empty array when no jobs nearby', async () => {
+    jobsService.getNearbyJobs.mockResolvedValue({ data: [], meta: { page: 1, limit: 20, total: 0 } });
+
+    const res = await request(app)
+      .get('/api/v1/jobs/nearby')
+      .query({ lat: 14.5995, lng: 120.9842 })
+      .set(authHeader(makeWorkerToken()));
+
+    expect(res.status).toBe(200);
+    expect(res.body.data).toHaveLength(0);
+    expect(res.body.meta.total).toBe(0);
+  });
+
+  it('400 — missing lat/lng query params', async () => {
+    const res = await request(app)
+      .get('/api/v1/jobs/nearby')
+      .set(authHeader(makeWorkerToken()));
+
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('VALIDATION_ERROR');
+  });
+
+  it('401 — unauthenticated request', async () => {
+    const res = await request(app).get('/api/v1/jobs/nearby').query({ lat: 14.5995, lng: 120.9842 });
+    expect(res.status).toBe(401);
+  });
+
+  it('403 — customer cannot access nearby jobs', async () => {
+    const res = await request(app)
+      .get('/api/v1/jobs/nearby')
+      .query({ lat: 14.5995, lng: 120.9842 })
+      .set(authHeader(makeToken()));
+
+    expect(res.status).toBe(403);
+  });
+});
+
 describe('POST /api/v1/jobs/:id/messages', () => {
   it('201 — sends a message', async () => {
     jobsService.sendMessage.mockResolvedValue({ id: 'msg-1', content: 'Hello!', sent_at: new Date().toISOString() });

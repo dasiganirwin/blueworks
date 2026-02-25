@@ -1,19 +1,19 @@
 import clsx from 'clsx';
 
 const STATUS_STYLES = {
-  pending:     'bg-yellow-100 text-yellow-800',
+  pending:     'bg-warning-100 text-warning-700',
   accepted:    'bg-blue-100 text-blue-800',
   en_route:    'bg-indigo-100 text-indigo-800',
   in_progress: 'bg-purple-100 text-purple-800',
-  completed:   'bg-green-100 text-green-800',
+  completed:   'bg-success-100 text-success-700',
   cancelled:   'bg-gray-100 text-gray-600',
-  disputed:    'bg-red-100 text-red-700',
-  online:      'bg-green-100 text-green-700',
+  disputed:    'bg-danger-100 text-danger-700',
+  online:      'bg-success-100 text-success-700',
   offline:     'bg-gray-100 text-gray-500',
   busy:        'bg-orange-100 text-orange-700',
-  active:      'bg-green-100 text-green-700',
-  suspended:   'bg-red-100 text-red-700',
-  pending_approval: 'bg-yellow-100 text-yellow-800',
+  active:      'bg-success-100 text-success-700',
+  suspended:   'bg-danger-100 text-danger-700',
+  pending_approval: 'bg-warning-100 text-warning-700',
 };
 
 const STATUS_LABELS = {

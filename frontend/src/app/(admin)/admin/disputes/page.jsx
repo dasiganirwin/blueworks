@@ -1,5 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { adminApi, disputesApi } from '@/lib/api';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
@@ -64,7 +65,14 @@ export default function AdminDisputesPage() {
               </div>
               <div className="flex flex-col items-end gap-2">
                 <Badge status="disputed" />
-                <Button size="sm" onClick={() => setSelected(d)}>Resolve</Button>
+                <div className="flex gap-2">
+                  {d.dispute_id && (
+                    <Link href={`/admin/disputes/${d.dispute_id}`}>
+                      <Button size="sm" variant="outline">View</Button>
+                    </Link>
+                  )}
+                  <Button size="sm" onClick={() => setSelected(d)}>Resolve</Button>
+                </div>
               </div>
             </div>
           ))}

@@ -22,7 +22,8 @@ export default function WorkerDashboard() {
       jobsApi.list({ status: 'accepted' }),
     ]).then(([inProg, accepted]) => {
       setActiveJobs([...(inProg.data.data ?? []), ...(accepted.data.data ?? [])]);
-    }).finally(() => setLoading(false));
+    }).catch(() => { /* leave list empty on error */ })
+      .finally(() => setLoading(false));
   }, []);
 
   const toggleAvailability = async () => {
@@ -31,6 +32,8 @@ export default function WorkerDashboard() {
     try {
       await workersApi.updateAvailability(next);
       setAvailability(next);
+    } catch {
+      /* silently ignore — availability UI reverts on next load */
     } finally {
       setTogglingAvail(false);
     }

@@ -49,7 +49,18 @@ export default function JobsListPage() {
       {loading ? (
         <div className="space-y-3">{[1,2,3].map(i => <div key={i} className="h-24 bg-gray-100 rounded-xl animate-pulse" />)}</div>
       ) : jobs.length === 0 ? (
-        <div className="text-center py-16 text-gray-400">No jobs found.</div>
+        <div className="flex flex-col items-center py-16 text-center gap-3">
+          <svg className="w-10 h-10 text-gray-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5}>
+            <rect x="2" y="7" width="20" height="14" rx="2" />
+            <path strokeLinecap="round" d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2" />
+          </svg>
+          <p className="text-sm text-gray-500">
+            {status ? 'No jobs match this filter.' : 'No jobs yet.'}
+          </p>
+          {!status && (
+            <Button size="sm" onClick={() => router.push('/jobs/new')}>Post your first job</Button>
+          )}
+        </div>
       ) : (
         <>
           <div className="space-y-3">
