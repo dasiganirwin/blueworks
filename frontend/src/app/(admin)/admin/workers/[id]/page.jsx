@@ -43,7 +43,7 @@ export default function AdminWorkerProfilePage() {
         status: modal === 'approve' ? 'active' : 'suspended',
       });
       setModal(null);
-      router.back();
+      router.push('/admin/workers');
     } finally {
       setProcessing(false);
     }
@@ -62,12 +62,9 @@ export default function AdminWorkerProfilePage() {
   if (error || !worker) {
     return (
       <div className="admin-container">
-        <button
-          onClick={() => router.back()}
-          className="flex items-center gap-1 text-sm text-gray-500 hover:text-brand-600 mb-3"
-        >
+        <Link href="/admin/workers" className="flex items-center gap-1 text-sm text-gray-500 hover:text-brand-600 mb-3">
           &larr; Back to Workers
-        </button>
+        </Link>
         <div className="text-center py-16 text-gray-400">{error ?? 'Worker not found.'}</div>
       </div>
     );
@@ -75,12 +72,9 @@ export default function AdminWorkerProfilePage() {
 
   return (
     <div className="admin-container space-y-5">
-      <button
-        onClick={() => router.back()}
-        className="flex items-center gap-1 text-sm text-gray-500 hover:text-brand-600 mb-3"
-      >
+      <Link href="/admin/workers" className="flex items-center gap-1 text-sm text-gray-500 hover:text-brand-600 mb-3">
         &larr; Back to Workers
-      </button>
+      </Link>
       <nav className="text-xs text-gray-500 mb-4 flex items-center gap-1">
         <Link href="/admin" className="hover:text-brand-600">Admin</Link>
         <span>/</span>

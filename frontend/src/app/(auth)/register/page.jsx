@@ -12,19 +12,34 @@ export default function RegisterPage() {
   const [form, setForm]         = useState({ role: 'customer', name: '', email: '', phone: '', password: '' });
   const [skills, setSkills]     = useState([]);
   const [error, setError]       = useState('');
+  const [skillError, setSkillError] = useState('');
   const [loading, setLoading]   = useState(false);
   const router = useRouter();
 
   const set = (key) => (e) => setForm(f => ({ ...f, [key]: e.target.value }));
 
-  const toggleSkill = (skill) => setSkills(prev =>
-    prev.includes(skill) ? prev.filter(s => s !== skill) : [...prev, skill]
-  );
+  const toggleSkill = (skill) => {
+    setSkills(prev => prev.includes(skill) ? prev.filter(s => s !== skill) : [...prev, skill]);
+    setSkillError('');
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
     setLoading(true);
+    if (form.role === 'worker') {
+      if (skills.length === 0) {
+        setSkillError('Please select at least one skill.');
+        setLoading(false);
+        return;
+      }
+      if (skills.length > 5) {
+        setSkillError('Please select no more than 5 skills.');
+        setLoading(false);
+        return;
+      }
+      setSkillError('');
+    }
     try {
       await authApi.register({ ...form, skills: form.role === 'worker' ? skills : undefined });
       router.push(`/verify-otp?phone=${encodeURIComponent(form.phone)}`);
@@ -78,6 +93,9 @@ export default function RegisterPage() {
                     </button>
                   ))}
                 </div>
+                {skillError && (
+                  <p className="text-xs text-danger-600 mt-1">{skillError}</p>
+                )}
               </div>
             )}
 

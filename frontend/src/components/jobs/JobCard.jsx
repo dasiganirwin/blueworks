@@ -1,10 +1,9 @@
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
+import { formatDateTime } from '@/lib/formatDate';
 
 export function JobCard({ job, onClick }) {
-  const date = new Date(job.created_at).toLocaleDateString('en-PH', {
-    month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
-  });
+  const date = formatDateTime(job.created_at);
 
   return (
     <Card onClick={onClick} className="hover:border-brand-300">

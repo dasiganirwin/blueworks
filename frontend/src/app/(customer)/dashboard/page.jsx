@@ -46,11 +46,11 @@ export default function CustomerDashboard() {
           <Link
             key={cat}
             href={`/jobs/new?category=${cat}`}
-            aria-label={CATEGORY_LABELS[cat]}
+            aria-label={`Find a ${CATEGORY_LABELS[cat]}`}
             className="flex flex-col items-center gap-1 bg-white border border-gray-200 rounded-xl p-3 hover:border-brand-400 hover:shadow-sm transition-all"
           >
-            <span className="text-brand-600">{CATEGORY_ICONS[cat]}</span>
-            <span className="text-xs text-gray-600 text-center capitalize">{cat}</span>
+            <span className="text-brand-600" aria-hidden="true">{CATEGORY_ICONS[cat]}</span>
+            <span className="text-xs text-gray-600 text-center capitalize" aria-hidden="true">{CATEGORY_LABELS[cat]}</span>
           </Link>
         ))}
       </div>

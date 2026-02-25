@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { disputesApi, jobsApi, usersApi } from '@/lib/api';
 import { Badge } from '@/components/ui/Badge';
@@ -26,7 +26,6 @@ function formatDateTime(iso) {
 
 export default function DisputeDetailPage() {
   const { id } = useParams();
-  const router = useRouter();
   const [dispute, setDispute] = useState(null);
   const [job, setJob]         = useState(null);
   const [raisedBy, setRaisedBy] = useState(null);
@@ -77,13 +76,9 @@ export default function DisputeDetailPage() {
   if (error || !dispute) {
     return (
       <div className="admin-container">
-        <button
-          type="button"
-          onClick={() => router.back()}
-          className="text-sm text-brand-600 hover:underline mb-4 inline-block"
-        >
+        <Link href="/admin/disputes" className="text-sm text-brand-600 hover:underline mb-4 inline-block">
           &larr; Back to Disputes
-        </button>
+        </Link>
         <div className="text-center py-16 text-gray-400">{error ?? 'Dispute not found.'}</div>
       </div>
     );
@@ -93,12 +88,9 @@ export default function DisputeDetailPage() {
 
   return (
     <div className="admin-container space-y-5">
-      <button
-        onClick={() => router.back()}
-        className="flex items-center gap-1 text-sm text-gray-500 hover:text-brand-600 mb-3"
-      >
-        ← Back
-      </button>
+      <Link href="/admin/disputes" className="flex items-center gap-1 text-sm text-gray-500 hover:text-brand-600 mb-3">
+        ← Back to Disputes
+      </Link>
       <nav className="text-xs text-gray-500 mb-4 flex items-center gap-1">
         <Link href="/admin" className="hover:text-brand-600">Admin</Link>
         <span>/</span>

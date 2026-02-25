@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
 import { Textarea, Select } from '@/components/ui/Input';
+import { useToast } from '@/components/ui/Toast';
 
 const ACTION_OPTIONS = [
   { value: 'full_refund',    label: 'Full Refund' },
@@ -15,8 +16,10 @@ const ACTION_OPTIONS = [
 ];
 
 export default function AdminDisputesPage() {
+  const { showToast } = useToast();
   const [disputes, setDisputes]   = useState([]);
   const [loading, setLoading]     = useState(true);
+  const [fetchError, setFetchError] = useState('');
   const [selected, setSelected]   = useState(null);
   const [resolution, setResolution] = useState('');
   const [action, setAction]       = useState('no_action');
@@ -24,10 +27,18 @@ export default function AdminDisputesPage() {
 
   const fetchDisputes = () => {
     setLoading(true);
+    setFetchError('');
     // Reuse jobs list filtered by disputed status for MVP
     fetch(`${process.env.NEXT_PUBLIC_API_URL}/jobs?status=disputed`, {
       headers: { Authorization: `Bearer ${localStorage.getItem('access_token')}` },
-    }).then(r => r.json()).then(d => setDisputes(d.data ?? [])).finally(() => setLoading(false));
+    })
+      .then(r => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        return r.json();
+      })
+      .then(d => setDisputes(d.data ?? []))
+      .catch(() => setFetchError('Failed to load disputes. Please try again.'))
+      .finally(() => setLoading(false));
   };
 
   useEffect(fetchDisputes, []);
@@ -39,6 +50,7 @@ export default function AdminDisputesPage() {
       // Get the dispute for this job
       const disputeRes = await disputesApi.getById(selected.dispute_id);
       await adminApi.resolveDispute(disputeRes.data.id, { status: 'resolved', resolution, action });
+      showToast('Dispute resolved successfully.', 'success');
       setSelected(null);
       fetchDisputes();
     } finally {
@@ -52,6 +64,13 @@ export default function AdminDisputesPage() {
 
       {loading ? (
         <div className="space-y-2">{[1,2,3].map(i => <div key={i} className="h-16 bg-gray-100 rounded-xl animate-pulse" />)}</div>
+      ) : fetchError ? (
+        <div className="text-center py-16">
+          <p className="text-danger-600 text-sm mb-3">{fetchError}</p>
+          <button onClick={fetchDisputes} className="text-sm text-brand-600 hover:underline font-medium">
+            Try again
+          </button>
+        </div>
       ) : disputes.length === 0 ? (
         <div className="text-center py-16 text-gray-400">No open disputes.</div>
       ) : (
