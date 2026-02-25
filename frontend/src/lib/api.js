@@ -58,6 +58,8 @@ export const usersApi = {
 export const workersApi = {
   getNearby:          (p)         => api.get('/workers/nearby', { params: p }),
   getById:            (id)        => api.get(`/workers/${id}`),
+  getMe:              ()          => api.get('/workers/me'),
+  updateMe:           (body)      => api.patch('/workers/me', body),
   updateAvailability: (status)    => api.patch('/workers/me/availability', { status }),
   updateLocation:     (lat, lng)  => api.patch('/workers/me/location', { lat, lng }),
   getEarnings:        (p)         => api.get('/workers/me/earnings', { params: p }),
@@ -108,6 +110,7 @@ export const adminApi = {
   updateWorker:  (id, body)    => api.patch(`/admin/workers/${id}`, body),
   updateUser:    (id, body)    => api.patch(`/admin/users/${id}`, body),
   getAnalytics:  (p)           => api.get('/admin/analytics', { params: p }),
+  listPayments:  (p)           => api.get('/admin/payments', { params: p }),
   resolveDispute:(id, body)    => api.patch(`/disputes/${id}`, body),
 };
 

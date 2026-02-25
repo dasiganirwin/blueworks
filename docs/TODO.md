@@ -444,9 +444,9 @@ S3-01 + S3-04 + S3-05 + S3-06
 
 | Task ID | Task | Owner | File(s) | Definition of Done | Status |
 |---------|------|-------|---------|-------------------|--------|
-| S4-01 | Stripe live end-to-end test | Irwin | Config only | `STRIPE_SECRET_KEY` + `STRIPE_WEBHOOK_SECRET` set in Railway; webhook URL registered in Stripe Dashboard; test card payment completes and `payments` row updated to `completed` in Supabase | To Do |
-| S4-02 | Cash confirm UI — worker side | Jei | `src/app/(worker)/worker/jobs/[id]/page.jsx`, `backend/src/routes/payments.routes.js` | When job is `completed` and payment method is `cash` and status is `pending`, worker sees "Confirm Cash Receipt" button; calls `POST /payments/:id/cash-confirm`; button replaced by confirmed state; customer notified | To Do |
-| S4-03 | Stripe redirect handling — customer side | Jei | `src/app/(customer)/jobs/[id]/page.jsx` | When customer returns from Stripe with `?payment=success`, page detects query param and shows payment confirmed banner; polls `GET /payments/:id` to reflect updated status; no duplicate payment attempt possible | To Do |
+| S4-01 | Stripe live end-to-end test | Irwin | Config only | `STRIPE_SECRET_KEY` + `STRIPE_WEBHOOK_SECRET` set in Railway; webhook URL registered in Stripe Dashboard; test card payment completes and `payments` row updated to `completed` in Supabase | ⏸ Deferred |
+| S4-02 | Cash confirm UI — worker side | Jei | `src/app/(worker)/worker/jobs/[id]/page.jsx`, `backend/src/routes/payments.routes.js` | When job is `completed` and payment method is `cash` and status is `pending`, worker sees "Confirm Cash Receipt" button; calls `POST /payments/:id/cash-confirm`; button replaced by confirmed state; customer notified | ✅ Done |
+| S4-03 | Stripe redirect handling — customer side | Jei | `src/app/(customer)/jobs/[id]/page.jsx` | When customer returns from Stripe with `?payment=success`, page detects query param and shows payment confirmed banner; polls `GET /payments/:id` to reflect updated status; no duplicate payment attempt possible | ⏸ Deferred |
 
 ---
 
@@ -454,9 +454,9 @@ S3-01 + S3-04 + S3-05 + S3-06
 
 | Task ID | Task | Owner | File(s) | Definition of Done | Status |
 |---------|------|-------|---------|-------------------|--------|
-| S4-04 | Worker profile edit — skills & bio | Jei | `src/app/(worker)/worker/profile/page.jsx` | Worker can update their name, skills (multi-select checkboxes for categories), and optional bio; calls `PATCH /users/me` + `PATCH /workers/me`; saved state reflects on next load | To Do |
-| S4-05 | Transactional email via Resend | Lau | `backend/src/services/email.service.js`, `backend/src/services/notifications.service.js` | Resend SDK installed; emails sent on: job accepted (customer), job completed (worker + customer), payment confirmed (worker + customer); no secrets hardcoded; graceful failure (log only, don't crash) | To Do |
-| S4-06 | Admin transactions page | Jei | `src/app/(admin)/admin/payments/page.jsx`, `backend/src/routes/admin.routes.js` | `/admin/payments` lists all payments with: job ID, customer, worker, amount, method, status, date; filterable by status; linked from admin nav | To Do |
+| S4-04 | Worker profile edit — skills & bio | Jei | `src/app/(worker)/worker/profile/page.jsx` | Worker can update their name, skills (multi-select checkboxes for categories), and optional bio; calls `PATCH /users/me` + `PATCH /workers/me`; saved state reflects on next load | ✅ Done |
+| S4-05 | Transactional email via Resend | Lau | `backend/src/services/email.service.js`, `backend/src/services/notifications.service.js` | Resend SDK installed; emails sent on: job accepted (customer), job completed (worker + customer), payment confirmed (worker + customer); no secrets hardcoded; graceful failure (log only, don't crash) | ⏸ Deferred |
+| S4-06 | Admin transactions page | Jei | `src/app/(admin)/admin/payments/page.jsx`, `backend/src/routes/admin.routes.js` | `/admin/payments` lists all payments with: job ID, customer, worker, amount, method, status, date; filterable by status; linked from admin nav | ✅ Done |
 
 ---
 
@@ -464,7 +464,7 @@ S3-01 + S3-04 + S3-05 + S3-06
 
 | Task ID | Task | Owner | File(s) | Definition of Done | Status |
 |---------|------|-------|---------|-------------------|--------|
-| S4-07 | Add `GET /workers/me` endpoint for worker self-profile | Lau | `backend/src/routes/workers.routes.js` | `GET /workers/me` returns authenticated worker's own profile (same shape as `GET /workers/:id`); used by profile edit page | To Do |
+| S4-07 | Add `GET /workers/me` endpoint for worker self-profile | Lau | `backend/src/routes/workers.routes.js` | `GET /workers/me` returns authenticated worker's own profile (same shape as `GET /workers/:id`); used by profile edit page | ✅ Done |
 | S4-08 | QA pass — payment loop, email, profile edit, admin transactions | Alex | All Sprint 4 files | Manual test: Stripe card payment end-to-end, cash confirm flow, email delivery check (inbox), profile edit persists, admin transactions visible; 0 console errors | To Do |
 
 ---

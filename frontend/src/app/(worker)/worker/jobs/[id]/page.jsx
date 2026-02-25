@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { jobsApi, ratingsApi } from '@/lib/api';
+import { jobsApi, ratingsApi, paymentsApi } from '@/lib/api';
 import { useToast } from '@/components/ui/Toast';
 import { Modal } from '@/components/ui/Modal';
 import { useAuthContext } from '@/context/AuthContext';
@@ -70,11 +70,16 @@ export default function WorkerJobDetailPage() {
   const [ratingComment, setRatingComment] = useState('');
   const [ratingSubmitting, setRatingSubmitting] = useState(false);
   const [ratingDone, setRatingDone] = useState(false);
+  const [cashConfirming, setCashConfirming] = useState(false);
+  const [cashConfirmed, setCashConfirmed]   = useState(false);
 
   const { showToast } = useToast();
   const { sendLocationPing, subscribeToJob } = useWebSocket({
     'job.status_changed': ({ job_id, status }) => {
       if (job_id === id) setJob(j => j ? { ...j, status } : j);
+    },
+    'payment.confirmed': ({ job_id }) => {
+      if (job_id === id) setCashConfirmed(true);
     },
   });
 
@@ -117,6 +122,21 @@ export default function WorkerJobDetailPage() {
       showToast(err.response?.data?.error?.message ?? 'Failed to submit rating.', 'error');
     } finally {
       setRatingSubmitting(false);
+    }
+  };
+
+  const handleCashConfirm = async () => {
+    const payment = job.payment?.[0];
+    if (!payment) return;
+    setCashConfirming(true);
+    try {
+      await paymentsApi.cashConfirm(payment.id);
+      setCashConfirmed(true);
+      showToast('Cash receipt confirmed!', 'success');
+    } catch (err) {
+      showToast(err.response?.data?.error?.message ?? 'Failed to confirm. Please try again.', 'error');
+    } finally {
+      setCashConfirming(false);
     }
   };
 
@@ -263,6 +283,22 @@ export default function WorkerJobDetailPage() {
             <p className="text-sm text-gray-500 italic">"{myRating.comment}"</p>
           )}
         </div>
+      )}
+
+      {/* Cash payment confirmation — visible when job is completed and payment is cash + pending */}
+      {job.status === 'completed' && job.payment?.[0]?.method === 'cash' && (
+        cashConfirmed || job.payment[0].status === 'completed' ? (
+          <div className="flex items-center gap-2 py-3 px-4 bg-success-50 border border-success-200 rounded-xl text-success-700 text-sm font-medium">
+            <svg className="w-4 h-4 shrink-0" viewBox="0 0 12 12" fill="none">
+              <path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+            Cash payment confirmed
+          </div>
+        ) : (
+          <Button className="w-full" loading={cashConfirming} onClick={handleCashConfirm}>
+            Confirm Cash Receipt
+          </Button>
+        )
       )}
 
       {/* Reject job — only available before going en_route */}

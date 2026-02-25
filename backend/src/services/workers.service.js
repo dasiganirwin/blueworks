@@ -115,4 +115,26 @@ async function getEarnings(workerId, { from, to, page = 1, limit = 20 }) {
   };
 }
 
-module.exports = { getNearby, getWorkerById, updateAvailability, updateLocation, getEarnings };
+const VALID_CATEGORIES = ['plumber','electrician','carpenter','welder','painter','aircon-tech','mason','general'];
+
+async function updateProfile(workerId, { name, skills }) {
+  if (name) {
+    const { error } = await supabase.from('users').update({ name }).eq('id', workerId);
+    if (error) throw error;
+  }
+
+  if (Array.isArray(skills)) {
+    const validSkills = skills.filter(s => VALID_CATEGORIES.includes(s));
+    await supabase.from('worker_skills').delete().eq('worker_id', workerId);
+    if (validSkills.length > 0) {
+      const { error } = await supabase
+        .from('worker_skills')
+        .insert(validSkills.map(category => ({ worker_id: workerId, category })));
+      if (error) throw error;
+    }
+  }
+
+  return getWorkerById(workerId);
+}
+
+module.exports = { getNearby, getWorkerById, updateAvailability, updateLocation, getEarnings, updateProfile };

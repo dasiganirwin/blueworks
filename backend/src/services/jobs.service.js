@@ -106,7 +106,7 @@ async function getNearbyJobs(workerId, { lat, lng, radius = 10, page = 1, limit 
 async function getJob(jobId, userId, role) {
   const { data: job, error } = await supabase
     .from('jobs')
-    .select('*, job_photos(url), customer:users!customer_id(id,name), worker:users!worker_id(id,name)')
+    .select('*, job_photos(url), customer:users!customer_id(id,name), worker:users!worker_id(id,name), payment:payments(id,method,status,amount)')
     .eq('id', jobId)
     .maybeSingle();
 
