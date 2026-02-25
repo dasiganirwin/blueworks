@@ -414,3 +414,116 @@ S3-01 + S3-04 + S3-05 + S3-06
 - Ratings API must enforce: job must be `completed`, caller must be customer or worker on that job, one rating per party.
 - Worker rejection should re-broadcast the job to nearby workers so it doesn't disappear from the feed.
 - PWA icons required: 192x192 and 512x512 PNG in `/public/icons/`.
+
+---
+
+---
+
+# Sprint 4 — Payments, Emails & Profile Completion
+
+**Sprint Goal:** Complete the full payment loop (Stripe live + cash confirm UI + redirect handling), add transactional email via Resend, allow workers to edit their profile/skills, and give admins a transactions view. This sprint closes all remaining MVP gaps from the PRD.
+
+**Last Updated:** 2026-02-25
+**Managed by:** Orchestrator Agent
+
+---
+
+## Blockers — Resolve Before Execution
+
+| # | Blocker | Owner | Urgency |
+|---|---------|-------|---------|
+| B-12 | `STRIPE_SECRET_KEY` and `STRIPE_WEBHOOK_SECRET` must be set in Railway env vars | Irwin | Critical |
+| B-13 | Stripe webhook endpoint must be registered in Stripe Dashboard: `POST https://[railway-url]/api/v1/payments/webhook` | Irwin | Critical |
+| B-14 | `RESEND_API_KEY` must be provisioned and set in Railway env vars before S4-05 | Irwin / Jane | High |
+
+---
+
+## Task Board
+
+### 🔴 HIGH PRIORITY
+
+| Task ID | Task | Owner | File(s) | Definition of Done | Status |
+|---------|------|-------|---------|-------------------|--------|
+| S4-01 | Stripe live end-to-end test | Irwin | Config only | `STRIPE_SECRET_KEY` + `STRIPE_WEBHOOK_SECRET` set in Railway; webhook URL registered in Stripe Dashboard; test card payment completes and `payments` row updated to `completed` in Supabase | To Do |
+| S4-02 | Cash confirm UI — worker side | Jei | `src/app/(worker)/worker/jobs/[id]/page.jsx`, `backend/src/routes/payments.routes.js` | When job is `completed` and payment method is `cash` and status is `pending`, worker sees "Confirm Cash Receipt" button; calls `POST /payments/:id/cash-confirm`; button replaced by confirmed state; customer notified | To Do |
+| S4-03 | Stripe redirect handling — customer side | Jei | `src/app/(customer)/jobs/[id]/page.jsx` | When customer returns from Stripe with `?payment=success`, page detects query param and shows payment confirmed banner; polls `GET /payments/:id` to reflect updated status; no duplicate payment attempt possible | To Do |
+
+---
+
+### 🟡 MEDIUM PRIORITY
+
+| Task ID | Task | Owner | File(s) | Definition of Done | Status |
+|---------|------|-------|---------|-------------------|--------|
+| S4-04 | Worker profile edit — skills & bio | Jei | `src/app/(worker)/worker/profile/page.jsx` | Worker can update their name, skills (multi-select checkboxes for categories), and optional bio; calls `PATCH /users/me` + `PATCH /workers/me`; saved state reflects on next load | To Do |
+| S4-05 | Transactional email via Resend | Lau | `backend/src/services/email.service.js`, `backend/src/services/notifications.service.js` | Resend SDK installed; emails sent on: job accepted (customer), job completed (worker + customer), payment confirmed (worker + customer); no secrets hardcoded; graceful failure (log only, don't crash) | To Do |
+| S4-06 | Admin transactions page | Jei | `src/app/(admin)/admin/payments/page.jsx`, `backend/src/routes/admin.routes.js` | `/admin/payments` lists all payments with: job ID, customer, worker, amount, method, status, date; filterable by status; linked from admin nav | To Do |
+
+---
+
+### 🟢 LOW PRIORITY
+
+| Task ID | Task | Owner | File(s) | Definition of Done | Status |
+|---------|------|-------|---------|-------------------|--------|
+| S4-07 | Add `GET /workers/me` endpoint for worker self-profile | Lau | `backend/src/routes/workers.routes.js` | `GET /workers/me` returns authenticated worker's own profile (same shape as `GET /workers/:id`); used by profile edit page | To Do |
+| S4-08 | QA pass — payment loop, email, profile edit, admin transactions | Alex | All Sprint 4 files | Manual test: Stripe card payment end-to-end, cash confirm flow, email delivery check (inbox), profile edit persists, admin transactions visible; 0 console errors | To Do |
+
+---
+
+## Dependency Chain
+
+```
+B-12 + B-13 (Stripe env vars + webhook URL)
+  └── S4-01 (Stripe live test — Irwin)
+        └── S4-03 (Stripe redirect handling)
+
+S4-02 (Cash confirm UI) — independent (backend already exists)
+
+B-14 (Resend API key)
+  └── S4-05 (Email service — Lau)
+
+S4-07 (GET /workers/me)
+  └── S4-04 (Worker profile edit — needs self-profile endpoint)
+
+S4-06 (Admin transactions) — independent
+
+S4-01 + S4-02 + S4-03 + S4-04 + S4-05 + S4-06
+  └── S4-08 (QA — runs last)
+```
+
+---
+
+## Risks
+
+| Risk | Severity | Mitigation |
+|------|----------|-----------|
+| Stripe webhook signature mismatch in production | High | Must use `express.raw()` before JSON body parser on webhook route (already done); use exact webhook secret from Stripe dashboard |
+| Worker has no payment ID to call cash-confirm | Medium | Fetch payment via `GET /payments?job_id=:id` or include payment in `GET /jobs/:id` response |
+| Resend email rate limits or bounces | Low | Log failures silently; don't block notification insert on email failure |
+| Worker profile edit overwrites skills if sent empty | Low | Send skills only if changed; validate non-empty array before PATCH |
+
+---
+
+## Assignment Summary
+
+| Owner | Tasks |
+|-------|-------|
+| **Irwin** | Resolve B-12, B-13, B-14; S4-01 (Stripe live config + test) |
+| **Lau** | S4-05 (Resend email service), S4-07 (GET /workers/me endpoint) |
+| **Jei** | S4-02, S4-03, S4-04, S4-06 |
+| **Alex** | S4-08 (QA — runs last) |
+
+---
+
+## Suggested Execution Order (Jei)
+
+`S4-03 → S4-02 → S4-04 → S4-06`
+
+---
+
+## Notes
+
+- Stripe backend code is complete (checkout session, webhook handler, cash confirm, refund). Sprint 4 is about wiring the live keys and the missing UI pieces.
+- Cash confirm: the worker job detail page needs to fetch the payment for the job on mount. Best approach: include `payment` in `GET /jobs/:id` join, or add `GET /payments?job_id=:id` admin/worker endpoint.
+- Resend: install `resend` package in backend (`npm install resend`). Use `RESEND_API_KEY` env var. Always `catch` and log email errors — never let email failure break the notification insert.
+- Worker profile edit needs a `PATCH /workers/me` endpoint to update `skills` and any bio/profile fields on the `workers` table. Check if this exists; if not, Lau adds it alongside S4-07.
+- Admin transactions page needs `GET /admin/payments` — add to `admin.routes.js` with pagination and status filter.
