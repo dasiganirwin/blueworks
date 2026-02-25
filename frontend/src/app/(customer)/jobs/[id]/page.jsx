@@ -13,6 +13,8 @@ import { JobMap } from '@/components/ui/JobMap';
 import { Modal } from '@/components/ui/Modal';
 import { useToast } from '@/components/ui/Toast';
 
+const STATUS_ORDER = ['pending','accepted','en_route','in_progress','completed'];
+
 export default function CustomerJobDetailPage() {
   const { id }          = useParams();
   const { user }        = useAuthContext();
@@ -374,9 +376,6 @@ export default function CustomerJobDetailPage() {
           <Button className="w-full mt-2" loading={processing} onClick={initiatePayment}>Confirm Payment</Button>
         </div>
       </Modal>
-    </div>
-  );
-}
 
       {/* Dispute modal */}
       <Modal isOpen={disputeModal} title="File a Dispute" onClose={() => { setDisputeModal(false); setDisputeError(''); setDisputeReason(''); }}>
@@ -401,5 +400,3 @@ export default function CustomerJobDetailPage() {
     </div>
   );
 }
-
-const STATUS_ORDER = ['pending','accepted','en_route','in_progress','completed'];
