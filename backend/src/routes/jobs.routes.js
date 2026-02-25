@@ -4,7 +4,8 @@ const { requireRole } = require('../middleware/roles');
 const { validate, validateQuery } = require('../middleware/validate');
 const multer = require('multer');
 const z = require('zod');
-const ctrl = require('../controllers/jobs.controller');
+const ctrl        = require('../controllers/jobs.controller');
+const ratingCtrl  = require('../controllers/ratings.controller');
 
 const router = Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024, files: 5 } });
@@ -37,11 +38,12 @@ const listQuerySchema = z.object({
 });
 
 const nearbyQuerySchema = z.object({
-  lat:    z.coerce.number(),
-  lng:    z.coerce.number(),
-  radius: z.coerce.number().default(10),
-  page:   z.coerce.number().default(1),
-  limit:  z.coerce.number().default(20),
+  lat:      z.coerce.number(),
+  lng:      z.coerce.number(),
+  radius:   z.coerce.number().default(10),
+  page:     z.coerce.number().default(1),
+  limit:    z.coerce.number().default(20),
+  category: z.string().optional(),
 });
 
 // Routes — order matters: /nearby before /:id
@@ -50,11 +52,19 @@ router.get('/',                authenticate,                          validateQu
 router.post('/',               authenticate, requireRole('customer'), validate(createJobSchema),        ctrl.createJob);
 router.get('/:id',             authenticate,                          ctrl.getJob);
 router.patch('/:id/status',    authenticate,                          validate(statusSchema),           ctrl.updateStatus);
+router.post('/:id/reject',     authenticate, requireRole('worker'),                                     ctrl.rejectJob);
 router.post('/:id/photos',     authenticate, requireRole('customer'), upload.array('photos', 5),       ctrl.uploadPhotos);
 router.delete('/:id',          authenticate, requireRole('admin'),                                      ctrl.deleteJob);
 
 // Messages nested under jobs
 router.get('/:id/messages',    authenticate, ctrl.getMessages);
 router.post('/:id/messages',   authenticate, validate(z.object({ content: z.string().min(1).max(2000) })), ctrl.sendMessage);
+
+// Ratings nested under jobs
+router.get('/:id/rating',      authenticate, ratingCtrl.getMyRating);
+router.post('/:id/rating',     authenticate, validate(z.object({
+  rating:  z.number().int().min(1).max(5),
+  comment: z.string().max(500).optional(),
+})), ratingCtrl.submitRating);
 
 module.exports = router;

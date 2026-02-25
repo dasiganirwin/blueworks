@@ -122,4 +122,24 @@ const getAnalytics = async (req, res, next) => {
   } catch (e) { next(e); }
 };
 
-module.exports = { listWorkers, updateWorker, updateUser, getAnalytics };
+const listPayments = async (req, res, next) => {
+  try {
+    const { status, page = 1, limit = 20 } = req.query;
+    let query = supabase
+      .from('payments')
+      .select(
+        'id, job_id, method, amount, currency, status, paid_at, created_at, customer:users!customer_id(name), worker:users!worker_id(name)',
+        { count: 'exact' }
+      )
+      .order('created_at', { ascending: false })
+      .range((page - 1) * limit, page * limit - 1);
+
+    if (status) query = query.eq('status', status);
+
+    const { data, count, error } = await query;
+    if (error) throw error;
+    res.json({ data, meta: { page: +page, limit: +limit, total: count } });
+  } catch (e) { next(e); }
+};
+
+module.exports = { listWorkers, updateWorker, updateUser, getAnalytics, listPayments };

@@ -15,11 +15,13 @@ const NAV_LINKS = {
     { href: '/worker/dashboard',    label: 'Home' },
     { href: '/worker/jobs/nearby',  label: 'Find Jobs' },
     { href: '/worker/earnings',     label: 'Earnings' },
+    { href: '/worker/profile',      label: 'Profile' },
   ],
   admin: [
     { href: '/admin/dashboard',  label: 'Overview' },
     { href: '/admin/workers',    label: 'Workers' },
     { href: '/admin/disputes',   label: 'Disputes' },
+    { href: '/admin/payments',   label: 'Transactions' },
     { href: '/admin/analytics',  label: 'Analytics' },
   ],
 };

@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import { jobsApi, paymentsApi } from '@/lib/api';
+import { jobsApi, paymentsApi, disputesApi, ratingsApi } from '@/lib/api';
 import { useAuthContext } from '@/context/AuthContext';
 import { useWebSocket } from '@/hooks/useWebSocket';
 import { Badge } from '@/components/ui/Badge';
@@ -12,6 +12,8 @@ import { JobChat } from '@/components/jobs/JobChat';
 import { JobMap } from '@/components/ui/JobMap';
 import { Modal } from '@/components/ui/Modal';
 import { useToast } from '@/components/ui/Toast';
+
+const STATUS_ORDER = ['pending','accepted','en_route','in_progress','completed'];
 
 export default function CustomerJobDetailPage() {
   const { id }          = useParams();
@@ -25,8 +27,18 @@ export default function CustomerJobDetailPage() {
   const [payMethod, setPayMethod]   = useState('card');
   const [payAmount, setPayAmount]   = useState('');
   const [payError, setPayError]     = useState('');
-  const [processing, setProcessing] = useState(false);
-  const [paid, setPaid]             = useState(false);
+  const [processing, setProcessing]       = useState(false);
+  const [paid, setPaid]                   = useState(false);
+  const [myRating, setMyRating]           = useState(null);
+  const [ratingValue, setRatingValue]     = useState(0);
+  const [ratingComment, setRatingComment] = useState('');
+  const [ratingSubmitting, setRatingSubmitting] = useState(false);
+  const [ratingDone, setRatingDone]       = useState(false);
+  const [disputeModal, setDisputeModal]   = useState(false);
+  const [disputeReason, setDisputeReason] = useState('');
+  const [disputeError, setDisputeError]   = useState('');
+  const [disputeFiled, setDisputeFiled]   = useState(false);
+  const [disputeSubmitting, setDisputeSubmitting] = useState(false);
 
   const { subscribeToJob } = useWebSocket({
     'job.status_changed': ({ job_id, status }) => {
@@ -42,6 +54,9 @@ export default function CustomerJobDetailPage() {
       .then(({ data }) => setJob(data))
       .finally(() => setLoading(false));
     subscribeToJob(id);
+    ratingsApi.getMyRating(id).then(({ data }) => {
+      if (data) { setMyRating(data); setRatingDone(true); setRatingValue(data.rating); }
+    }).catch(() => {});
   }, [id]);
 
   const cancelJob = async () => {
@@ -90,8 +105,39 @@ export default function CustomerJobDetailPage() {
   if (loading) return <div className="page-container"><div className="h-40 bg-gray-100 rounded-xl animate-pulse" /></div>;
   if (!job)    return <div className="page-container"><p className="text-gray-500">Job not found.</p></div>;
 
-  const canCancel = ['pending', 'accepted'].includes(job.status);
-  const canPay    = job.status === 'completed' && !paid;
+  const submitRating = async () => {
+    if (!ratingValue) return;
+    setRatingSubmitting(true);
+    try {
+      await ratingsApi.submit(id, { rating: ratingValue, comment: ratingComment.trim() || undefined });
+      setRatingDone(true);
+      showToast('Thanks for your rating!', 'success');
+    } catch (err) {
+      showToast(err.response?.data?.error?.message ?? 'Failed to submit rating.', 'error');
+    } finally {
+      setRatingSubmitting(false);
+    }
+  };
+
+  const canCancel   = ['pending', 'accepted'].includes(job.status);
+  const canPay      = job.status === 'completed' && !paid;
+  const canDispute  = job.status === 'completed' && !disputeFiled;
+
+  const fileDispute = async () => {
+    if (!disputeReason.trim()) { setDisputeError('Please describe the issue.'); return; }
+    setDisputeError('');
+    setDisputeSubmitting(true);
+    try {
+      await disputesApi.create({ job_id: id, reason: disputeReason.trim() });
+      setDisputeFiled(true);
+      setDisputeModal(false);
+      showToast('Dispute filed. Our team will review it shortly.', 'success');
+    } catch (err) {
+      setDisputeError(err.response?.data?.error?.message ?? 'Failed to file dispute. Please try again.');
+    } finally {
+      setDisputeSubmitting(false);
+    }
+  };
 
   return (
     <div className="page-container space-y-4">
@@ -141,7 +187,10 @@ export default function CustomerJobDetailPage() {
       {job.worker && (
         <Card>
           <p className="text-xs text-gray-500 mb-1">Assigned Worker</p>
-          <p className="font-semibold">{job.worker.name}</p>
+          <Link href={`/workers/${job.worker_id}`} className="font-semibold text-brand-600 hover:underline">
+            {job.worker.name}
+          </Link>
+          <p className="text-xs text-gray-400 mt-0.5">Tap to view profile</p>
         </Card>
       )}
 
@@ -150,6 +199,16 @@ export default function CustomerJobDetailPage() {
         <p className="text-xs text-gray-500 mb-1">Location</p>
         <p className="text-sm">{job.location_address}</p>
       </Card>
+
+      {/* Scheduled time — shown for scheduled jobs */}
+      {job.scheduled_at && (
+        <Card>
+          <p className="text-xs text-gray-500 mb-1">Scheduled For</p>
+          <p className="text-sm font-medium">
+            {new Date(job.scheduled_at).toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' })}
+          </p>
+        </Card>
+      )}
 
       {/* Worker location map — live when en_route or in_progress */}
       {['en_route', 'in_progress'].includes(job.status) && job.worker_lat && job.worker_lng && (
@@ -181,7 +240,54 @@ export default function CustomerJobDetailPage() {
             Payment submitted — awaiting worker confirmation
           </div>
         )}
+        {canDispute && (
+          <Button variant="outline" className="flex-1 text-warning-600 border-warning-200 hover:bg-warning-50" onClick={() => setDisputeModal(true)}>
+            File Dispute
+          </Button>
+        )}
+        {disputeFiled && (
+          <div className="flex-1 flex items-center justify-center gap-2 py-2.5 px-4 bg-warning-50 border border-warning-200 rounded-lg text-warning-700 text-sm font-medium">
+            Dispute filed — under review
+          </div>
+        )}
       </div>
+
+      {/* Rate the worker */}
+      {job.status === 'completed' && job.worker && (
+        <div className="bg-white border border-gray-200 rounded-xl p-4 space-y-3">
+          <p className="text-sm font-semibold text-gray-900">
+            {ratingDone ? 'Your Rating' : 'Rate the Worker'}
+          </p>
+          <div className="flex gap-1">
+            {[1,2,3,4,5].map(star => (
+              <button
+                key={star}
+                type="button"
+                disabled={ratingDone}
+                onClick={() => !ratingDone && setRatingValue(star)}
+                className={`text-2xl transition-colors ${star <= ratingValue ? 'text-yellow-400' : 'text-gray-300'} ${!ratingDone ? 'hover:text-yellow-300' : ''}`}
+              >★</button>
+            ))}
+          </div>
+          {!ratingDone && (
+            <>
+              <textarea
+                value={ratingComment}
+                onChange={e => setRatingComment(e.target.value)}
+                placeholder="Leave a comment (optional)…"
+                rows={2}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-brand-500 resize-none"
+              />
+              <Button className="w-full" size="sm" loading={ratingSubmitting} disabled={!ratingValue} onClick={submitRating}>
+                Submit Rating
+              </Button>
+            </>
+          )}
+          {ratingDone && myRating?.comment && (
+            <p className="text-sm text-gray-500 italic">"{myRating.comment}"</p>
+          )}
+        </div>
+      )}
 
       {/* Chat */}
       {['accepted','en_route','in_progress','completed'].includes(job.status) && (
@@ -270,8 +376,27 @@ export default function CustomerJobDetailPage() {
           <Button className="w-full mt-2" loading={processing} onClick={initiatePayment}>Confirm Payment</Button>
         </div>
       </Modal>
+
+      {/* Dispute modal */}
+      <Modal isOpen={disputeModal} title="File a Dispute" onClose={() => { setDisputeModal(false); setDisputeError(''); setDisputeReason(''); }}>
+        <div className="space-y-3">
+          <p className="text-sm text-gray-600">Describe the issue with this job. Our team will review and respond within 24 hours.</p>
+          <textarea
+            value={disputeReason}
+            onChange={(e) => { setDisputeReason(e.target.value); setDisputeError(''); }}
+            placeholder="e.g. Worker did not complete the job properly…"
+            rows={4}
+            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500 resize-none"
+          />
+          {disputeError && (
+            <div role="alert" className="bg-danger-50 border border-danger-200 text-danger-700 text-sm px-3 py-2 rounded-lg">{disputeError}</div>
+          )}
+          <div className="flex gap-3">
+            <Button variant="secondary" className="flex-1" onClick={() => { setDisputeModal(false); setDisputeError(''); setDisputeReason(''); }}>Cancel</Button>
+            <Button className="flex-1" loading={disputeSubmitting} onClick={fileDispute}>Submit Dispute</Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }
-
-const STATUS_ORDER = ['pending','accepted','en_route','in_progress','completed'];

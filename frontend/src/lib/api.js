@@ -58,6 +58,8 @@ export const usersApi = {
 export const workersApi = {
   getNearby:          (p)         => api.get('/workers/nearby', { params: p }),
   getById:            (id)        => api.get(`/workers/${id}`),
+  getMe:              ()          => api.get('/workers/me'),
+  updateMe:           (body)      => api.patch('/workers/me', body),
   updateAvailability: (status)    => api.patch('/workers/me/availability', { status }),
   updateLocation:     (lat, lng)  => api.patch('/workers/me/location', { lat, lng }),
   getEarnings:        (p)         => api.get('/workers/me/earnings', { params: p }),
@@ -70,6 +72,7 @@ export const jobsApi = {
   nearby:        (p)            => api.get('/jobs/nearby', { params: p }),
   getById:       (id)           => api.get(`/jobs/${id}`),
   updateStatus:  (id, status)   => api.patch(`/jobs/${id}/status`, { status }),
+  reject:        (id)           => api.post(`/jobs/${id}/reject`),
   uploadPhotos:  (id, formData) => api.post(`/jobs/${id}/photos`, formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
   getMessages:   (id, p)        => api.get(`/jobs/${id}/messages`, { params: p }),
   sendMessage:   (id, content)  => api.post(`/jobs/${id}/messages`, { content }),
@@ -89,6 +92,12 @@ export const notificationsApi = {
   markAllRead:()   => api.patch('/notifications/read-all'),
 };
 
+// ── Ratings ───────────────────────────────────────────────────
+export const ratingsApi = {
+  submit:      (jobId, body) => api.post(`/jobs/${jobId}/rating`, body),
+  getMyRating: (jobId)       => api.get(`/jobs/${jobId}/rating`),
+};
+
 // ── Disputes ─────────────────────────────────────────────────
 export const disputesApi = {
   create:  (body) => api.post('/disputes', body),
@@ -101,6 +110,7 @@ export const adminApi = {
   updateWorker:  (id, body)    => api.patch(`/admin/workers/${id}`, body),
   updateUser:    (id, body)    => api.patch(`/admin/users/${id}`, body),
   getAnalytics:  (p)           => api.get('/admin/analytics', { params: p }),
+  listPayments:  (p)           => api.get('/admin/payments', { params: p }),
   resolveDispute:(id, body)    => api.patch(`/disputes/${id}`, body),
 };
 

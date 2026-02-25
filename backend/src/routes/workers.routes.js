@@ -23,10 +23,20 @@ const locationSchema = z.object({
   lng: z.number().min(-180).max(180),
 });
 
-router.get('/nearby',            authenticate, requireRole('customer'), validateQuery(nearbySchema), ctrl.getNearby);
-router.get('/me/earnings',       authenticate, requireRole('worker'),   ctrl.getEarnings);
+const VALID_CATEGORIES = ['plumber','electrician','carpenter','welder','painter','aircon-tech','mason','general'];
+
+const profileSchema = z.object({
+  name:   z.string().min(2).max(100).optional(),
+  skills: z.array(z.enum(VALID_CATEGORIES)).min(1).optional(),
+}).refine(d => d.name || d.skills, { message: 'At least one field (name or skills) is required.' });
+
+// /me routes must come before /:id
+router.get('/nearby',            authenticate, requireRole('customer'), validateQuery(nearbySchema),  ctrl.getNearby);
+router.get('/me',                authenticate, requireRole('worker'),                                 ctrl.getMe);
+router.get('/me/earnings',       authenticate, requireRole('worker'),                                 ctrl.getEarnings);
+router.patch('/me',              authenticate, requireRole('worker'),   validate(profileSchema),      ctrl.updateProfile);
 router.patch('/me/availability', authenticate, requireRole('worker'),   validate(availabilitySchema), ctrl.updateAvailability);
 router.patch('/me/location',     authenticate, requireRole('worker'),   validate(locationSchema),     ctrl.updateLocation);
-router.get('/:id',               authenticate,                          ctrl.getWorkerById);
+router.get('/:id',               authenticate,                                                        ctrl.getWorkerById);
 
 module.exports = router;

@@ -31,9 +31,16 @@ const analyticsQuery = z.object({
   to:   z.string().datetime().optional(),
 });
 
+const paymentsQuery = z.object({
+  status: z.enum(['pending', 'completed', 'refunded']).optional(),
+  page:   z.coerce.number().default(1),
+  limit:  z.coerce.number().max(50).default(20),
+});
+
 router.get('/workers',       validateQuery(workerListQuery),  ctrl.listWorkers);
 router.patch('/workers/:id', validate(workerUpdateSchema),    ctrl.updateWorker);
 router.patch('/users/:id',   validate(userUpdateSchema),      ctrl.updateUser);
 router.get('/analytics',     validateQuery(analyticsQuery),   ctrl.getAnalytics);
+router.get('/payments',      validateQuery(paymentsQuery),    ctrl.listPayments);
 
 module.exports = router;

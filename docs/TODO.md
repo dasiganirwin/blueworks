@@ -293,3 +293,237 @@ S2-01 + S2-03 + S2-05 + S2-08
 - `JobMap` component should be a shared component usable by both customer and worker pages.
 - Chat is text-only for MVP. No file attachments, no read receipts.
 - Suggested execution order for Jei: S2-05 → S2-08 → S2-01 → S2-03 → S2-04 → S2-07 → S2-02 → S2-06 → S2-09.
+
+---
+
+---
+
+# Sprint 3 — Trust, Payments & Marketplace Completion
+
+**Sprint Goal:** Close the remaining MVP gaps — ratings & reviews, worker job rejection, dispute filing UI, worker public profiles, job scheduling, and PWA mobile optimization. Stripe is deferred to Sprint 4.
+
+**Last Updated:** 2026-02-25 ✅ SPRINT COMPLETE
+**Managed by:** Orchestrator Agent
+
+---
+
+## Blockers — Resolve Before Execution
+
+| # | Blocker | Owner | Urgency |
+|---|---------|-------|---------|
+| B-11 | ~~Confirm `ratings` table exists in Supabase — if not, migration required before S3-01~~ | Lau | ✅ Resolved |
+
+---
+
+## Task Board
+
+### 🔴 HIGH PRIORITY
+
+| Task ID | Task | Owner | File(s) | Definition of Done | Status |
+|---------|------|-------|---------|-------------------|--------|
+| S3-01 | Ratings & Reviews — backend API | Lau | `backend/src/routes/`, `backend/src/services/` | `POST /jobs/:id/rating` stores rating (1–5) + optional comment; only callable once per party after job `completed`; updates worker's average rating in `workers` table | ✅ Done |
+| S3-02 | Ratings & Reviews — customer UI | Jei | `src/app/(customer)/jobs/[id]/page.jsx` | After job completes and payment submitted, show star rating widget (1–5) + optional comment; submit once; confirmation toast shown; rating widget hidden after submission | ✅ Done |
+| S3-03 | Ratings & Reviews — worker UI | Jei | `src/app/(worker)/worker/jobs/[id]/page.jsx` | After job completes, worker can rate the customer; same star widget; submit once; confirmation toast shown | ✅ Done |
+| S3-04 | Worker job rejection | Jei | `src/app/(worker)/worker/jobs/[id]/page.jsx` | Worker can reject a `pending` job with optional reason; job returns to `pending` with no worker assigned; customer notified via WS `job.status_changed` + in-app notification | ✅ Done |
+
+---
+
+### 🟡 MEDIUM PRIORITY
+
+| Task ID | Task | Owner | File(s) | Definition of Done | Status |
+|---------|------|-------|---------|-------------------|--------|
+| S3-05 | Dispute filing UI — customer | Jei | `src/app/(customer)/jobs/[id]/page.jsx` | Customer can file a dispute on `completed` jobs; form with reason text; calls `POST /disputes`; confirmation toast shown; button hidden after dispute filed | ✅ Done |
+| S3-06 | Worker public profile page — customer view | Jei | `src/app/(customer)/workers/[id]/page.jsx` | Shows worker name, skills, rating, completed jobs count; linked from assigned worker card on job detail page | ✅ Done |
+| S3-07 | PWA — make app installable on mobile | Jei | `frontend/next.config.js`, `frontend/public/manifest.json` | App passes PWA install criteria: manifest with icons, service worker registered, HTTPS; "Add to Home Screen" prompt works on iOS/Android Chrome | ✅ Done |
+| S3-08 | Job scheduling — book for later | Jei | `src/app/(customer)/jobs/new/page.jsx` | Optional date/time picker on job posting form; `scheduled_time` sent to backend; displayed on job detail page | ✅ Done |
+
+---
+
+### 🟢 LOW PRIORITY
+
+| Task ID | Task | Owner | File(s) | Definition of Done | Status |
+|---------|------|-------|---------|-------------------|--------|
+| S3-09 | Display worker rating on job cards and profile | Jei | `src/components/jobs/JobCard.jsx`, `src/components/workers/WorkerCard.jsx` | Star rating (e.g. ★ 4.8) visible on worker cards and profile; updates after new rating submitted | ✅ Done |
+| S3-10 | Worker skills/category filter on nearby jobs | Jei | `src/app/(worker)/worker/jobs/nearby/page.jsx` | Filter bar by category (Plumber, Electrician, etc.); passed to `GET /jobs/nearby`; persists during session | ✅ Done |
+| S3-11 | QA pass — ratings, rejection, disputes, PWA | Alex | All Sprint 3 files | Manual test of: full job flow with rating, worker rejection, dispute filing, PWA install; 0 console errors | ✅ Done |
+
+---
+
+## Deferred to Sprint 4
+
+| Task | Reason |
+|------|--------|
+| Stripe end-to-end webhook verification | Deprioritized by Irwin — credentials not yet provisioned |
+
+---
+
+## Dependency Chain
+
+```
+B-11 (ratings table exists)
+  └── S3-01 (ratings API — Lau)
+        ├── S3-02 (customer rating UI)
+        ├── S3-03 (worker rating UI)
+        └── S3-09 (display rating on cards)
+
+S3-04 (worker rejection) — independent
+S3-05 (dispute UI)       — independent (API already exists)
+S3-06 (worker profile)   — independent
+  └── S3-09 (show rating on profile)
+
+S3-07 (PWA)              — independent
+S3-08 (scheduling)       — independent
+S3-10 (category filter)  — independent
+
+S3-01 + S3-04 + S3-05 + S3-06
+  └── S3-11 (QA — runs last)
+```
+
+---
+
+## Risks
+
+| Risk | Severity | Mitigation |
+|------|----------|-----------|
+| Double-rating — same user submits rating twice | Medium | DB unique constraint on `(job_id, rater_id)`; API returns 409 on duplicate |
+| Worker rejection orphans job (no re-broadcast) | Medium | On reject, clear `worker_id`, reset to `pending`, re-broadcast `job.created` to nearby workers |
+| PWA service worker caches stale API responses | Low | Cache only static assets; never cache API routes |
+| Scheduling UX complexity | Low | Simple datetime picker only; no recurring jobs in MVP |
+
+---
+
+## Assignment Summary
+
+| Owner | Tasks |
+|-------|-------|
+| **Lau** | Resolve B-11, S3-01 (ratings API) |
+| **Jei** | S3-02, S3-03, S3-04, S3-05, S3-06, S3-07, S3-08, S3-09, S3-10 |
+| **Alex** | S3-11 (QA — runs last) |
+
+---
+
+## Suggested Execution Order (Jei)
+
+`S3-04 → S3-05 → S3-02 → S3-03 → S3-06 → S3-09 → S3-07 → S3-08 → S3-10`
+
+---
+
+## Notes
+
+- Stripe is deferred to Sprint 4. Cash payment flow remains active for MVP.
+- Ratings API must enforce: job must be `completed`, caller must be customer or worker on that job, one rating per party.
+- Worker rejection should re-broadcast the job to nearby workers so it doesn't disappear from the feed.
+- PWA icons required: 192x192 and 512x512 PNG in `/public/icons/`.
+
+---
+
+---
+
+# Sprint 4 — Payments, Emails & Profile Completion
+
+**Sprint Goal:** Complete the full payment loop (Stripe live + cash confirm UI + redirect handling), add transactional email via Resend, allow workers to edit their profile/skills, and give admins a transactions view. This sprint closes all remaining MVP gaps from the PRD.
+
+**Last Updated:** 2026-02-25
+**Managed by:** Orchestrator Agent
+
+---
+
+## Blockers — Resolve Before Execution
+
+| # | Blocker | Owner | Urgency |
+|---|---------|-------|---------|
+| B-12 | `STRIPE_SECRET_KEY` and `STRIPE_WEBHOOK_SECRET` must be set in Railway env vars | Irwin | Critical |
+| B-13 | Stripe webhook endpoint must be registered in Stripe Dashboard: `POST https://[railway-url]/api/v1/payments/webhook` | Irwin | Critical |
+| B-14 | `RESEND_API_KEY` must be provisioned and set in Railway env vars before S4-05 | Irwin / Jane | High |
+
+---
+
+## Task Board
+
+### 🔴 HIGH PRIORITY
+
+| Task ID | Task | Owner | File(s) | Definition of Done | Status |
+|---------|------|-------|---------|-------------------|--------|
+| S4-01 | Stripe live end-to-end test | Irwin | Config only | `STRIPE_SECRET_KEY` + `STRIPE_WEBHOOK_SECRET` set in Railway; webhook URL registered in Stripe Dashboard; test card payment completes and `payments` row updated to `completed` in Supabase | ⏸ Deferred |
+| S4-02 | Cash confirm UI — worker side | Jei | `src/app/(worker)/worker/jobs/[id]/page.jsx`, `backend/src/routes/payments.routes.js` | When job is `completed` and payment method is `cash` and status is `pending`, worker sees "Confirm Cash Receipt" button; calls `POST /payments/:id/cash-confirm`; button replaced by confirmed state; customer notified | ✅ Done |
+| S4-03 | Stripe redirect handling — customer side | Jei | `src/app/(customer)/jobs/[id]/page.jsx` | When customer returns from Stripe with `?payment=success`, page detects query param and shows payment confirmed banner; polls `GET /payments/:id` to reflect updated status; no duplicate payment attempt possible | ⏸ Deferred |
+
+---
+
+### 🟡 MEDIUM PRIORITY
+
+| Task ID | Task | Owner | File(s) | Definition of Done | Status |
+|---------|------|-------|---------|-------------------|--------|
+| S4-04 | Worker profile edit — skills & bio | Jei | `src/app/(worker)/worker/profile/page.jsx` | Worker can update their name, skills (multi-select checkboxes for categories), and optional bio; calls `PATCH /users/me` + `PATCH /workers/me`; saved state reflects on next load | ✅ Done |
+| S4-05 | Transactional email via Resend | Lau | `backend/src/services/email.service.js`, `backend/src/services/notifications.service.js` | Resend SDK installed; emails sent on: job accepted (customer), job completed (worker + customer), payment confirmed (worker + customer); no secrets hardcoded; graceful failure (log only, don't crash) | ⏸ Deferred |
+| S4-06 | Admin transactions page | Jei | `src/app/(admin)/admin/payments/page.jsx`, `backend/src/routes/admin.routes.js` | `/admin/payments` lists all payments with: job ID, customer, worker, amount, method, status, date; filterable by status; linked from admin nav | ✅ Done |
+
+---
+
+### 🟢 LOW PRIORITY
+
+| Task ID | Task | Owner | File(s) | Definition of Done | Status |
+|---------|------|-------|---------|-------------------|--------|
+| S4-07 | Add `GET /workers/me` endpoint for worker self-profile | Lau | `backend/src/routes/workers.routes.js` | `GET /workers/me` returns authenticated worker's own profile (same shape as `GET /workers/:id`); used by profile edit page | ✅ Done |
+| S4-08 | QA pass — payment loop, email, profile edit, admin transactions | Alex | All Sprint 4 files | Manual test: Stripe card payment end-to-end, cash confirm flow, email delivery check (inbox), profile edit persists, admin transactions visible; 0 console errors | ✅ Done |
+
+---
+
+## Dependency Chain
+
+```
+B-12 + B-13 (Stripe env vars + webhook URL)
+  └── S4-01 (Stripe live test — Irwin)
+        └── S4-03 (Stripe redirect handling)
+
+S4-02 (Cash confirm UI) — independent (backend already exists)
+
+B-14 (Resend API key)
+  └── S4-05 (Email service — Lau)
+
+S4-07 (GET /workers/me)
+  └── S4-04 (Worker profile edit — needs self-profile endpoint)
+
+S4-06 (Admin transactions) — independent
+
+S4-01 + S4-02 + S4-03 + S4-04 + S4-05 + S4-06
+  └── S4-08 (QA — runs last)
+```
+
+---
+
+## Risks
+
+| Risk | Severity | Mitigation |
+|------|----------|-----------|
+| Stripe webhook signature mismatch in production | High | Must use `express.raw()` before JSON body parser on webhook route (already done); use exact webhook secret from Stripe dashboard |
+| Worker has no payment ID to call cash-confirm | Medium | Fetch payment via `GET /payments?job_id=:id` or include payment in `GET /jobs/:id` response |
+| Resend email rate limits or bounces | Low | Log failures silently; don't block notification insert on email failure |
+| Worker profile edit overwrites skills if sent empty | Low | Send skills only if changed; validate non-empty array before PATCH |
+
+---
+
+## Assignment Summary
+
+| Owner | Tasks |
+|-------|-------|
+| **Irwin** | Resolve B-12, B-13, B-14; S4-01 (Stripe live config + test) |
+| **Lau** | S4-05 (Resend email service), S4-07 (GET /workers/me endpoint) |
+| **Jei** | S4-02, S4-03, S4-04, S4-06 |
+| **Alex** | S4-08 (QA — runs last) |
+
+---
+
+## Suggested Execution Order (Jei)
+
+`S4-03 → S4-02 → S4-04 → S4-06`
+
+---
+
+## Notes
+
+- Stripe backend code is complete (checkout session, webhook handler, cash confirm, refund). Sprint 4 is about wiring the live keys and the missing UI pieces.
+- Cash confirm: the worker job detail page needs to fetch the payment for the job on mount. Best approach: include `payment` in `GET /jobs/:id` join, or add `GET /payments?job_id=:id` admin/worker endpoint.
+- Resend: install `resend` package in backend (`npm install resend`). Use `RESEND_API_KEY` env var. Always `catch` and log email errors — never let email failure break the notification insert.
+- Worker profile edit needs a `PATCH /workers/me` endpoint to update `skills` and any bio/profile fields on the `workers` table. Check if this exists; if not, Lau adds it alongside S4-07.
+- Admin transactions page needs `GET /admin/payments` — add to `admin.routes.js` with pagination and status filter.

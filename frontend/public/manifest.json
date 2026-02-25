@@ -1,12 +1,15 @@
 {
+  "id": "/",
   "name": "BlueWork",
   "short_name": "BlueWork",
   "description": "On-demand skilled workers, fast.",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#1d4ed8",
   "orientation": "portrait",
+  "categories": ["utilities", "productivity"],
   "icons": [
     {
       "src": "/icons/icon-192x192.png",

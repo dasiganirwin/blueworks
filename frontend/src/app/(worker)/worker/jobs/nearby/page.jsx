@@ -6,29 +6,37 @@ import { JobCard } from '@/components/jobs/JobCard';
 import { Button } from '@/components/ui/Button';
 import { useWebSocket } from '@/hooks/useWebSocket';
 
+const CATEGORIES = ['all','plumber','electrician','carpenter','welder','painter','aircon-tech','mason','general'];
+
 export default function NearbyJobsPage() {
-  const [jobs, setJobs]       = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [coords, setCoords]   = useState(null);
+  const [jobs, setJobs]           = useState([]);
+  const [loading, setLoading]     = useState(true);
+  const [coords, setCoords]       = useState(null);
+  const [category, setCategory]   = useState('all');
   const router = useRouter();
 
   useWebSocket({
-    // Normalize the broadcast payload so JobCard always gets a valid job object
+    // Only prepend if it matches the active category filter
     'job.created': (payload) => {
-      setJobs(prev => [{ ...payload, id: payload.id ?? payload.job_id }, ...prev]);
+      const job = { ...payload, id: payload.id ?? payload.job_id };
+      setJobs(prev => {
+        if (category !== 'all' && job.category !== category) return prev;
+        return [job, ...prev];
+      });
     },
   });
 
-  useEffect(() => {
-    const fetchNearby = (lat, lng) => {
-      jobsApi.nearby({ lat, lng })
-        .then(({ data }) => setJobs(data.data ?? []))
-        .catch(() => { /* leave list empty */ })
-        .finally(() => setLoading(false));
-    };
+  const fetchNearby = (lat, lng, cat = category) => {
+    setLoading(true);
+    const params = { lat, lng, ...(cat !== 'all' && { category: cat }) };
+    jobsApi.nearby(params)
+      .then(({ data }) => setJobs(data.data ?? []))
+      .catch(() => { /* leave list empty */ })
+      .finally(() => setLoading(false));
+  };
 
+  useEffect(() => {
     if (!navigator.geolocation) {
-      // No geolocation API — fall back to Manila coords immediately
       fetchNearby(14.5995, 120.9842);
       return;
     }
@@ -39,27 +47,44 @@ export default function NearbyJobsPage() {
         fetchNearby(c.latitude, c.longitude);
       },
       () => {
-        // Permission denied or unavailable — fall back
         fetchNearby(14.5995, 120.9842);
       }
     );
   }, []);
 
-  const refresh = () => {
-    setLoading(true);
+  const refresh = (cat = category) => {
     const lat = coords?.lat ?? 14.5995;
     const lng = coords?.lng ?? 120.9842;
-    jobsApi.nearby({ lat, lng })
-      .then(({ data }) => setJobs(data.data ?? []))
-      .catch(() => { /* leave list empty */ })
-      .finally(() => setLoading(false));
+    fetchNearby(lat, lng, cat);
+  };
+
+  const handleCategoryChange = (cat) => {
+    setCategory(cat);
+    refresh(cat);
   };
 
   return (
     <div className="page-container">
-      <div className="flex items-center justify-between mb-5">
+      <div className="flex items-center justify-between mb-4">
         <h1 className="text-xl font-bold text-gray-900">Nearby Jobs</h1>
-        <Button size="sm" variant="secondary" onClick={refresh}>Refresh</Button>
+        <Button size="sm" variant="secondary" onClick={() => refresh()}>Refresh</Button>
+      </div>
+
+      {/* Category filter */}
+      <div className="flex gap-2 overflow-x-auto pb-2 mb-4 scrollbar-hide">
+        {CATEGORIES.map(cat => (
+          <button
+            key={cat}
+            onClick={() => handleCategoryChange(cat)}
+            className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
+              category === cat
+                ? 'bg-brand-600 text-white border-brand-600'
+                : 'bg-white text-gray-600 border-gray-300 hover:border-brand-400'
+            }`}
+          >
+            {cat === 'all' ? 'All' : cat.charAt(0).toUpperCase() + cat.slice(1)}
+          </button>
+        ))}
       </div>
 
       {loading ? (
