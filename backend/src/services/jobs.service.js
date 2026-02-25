@@ -175,7 +175,7 @@ async function updateStatus(jobId, userId, role, newStatus) {
     await supabase.from('workers').update({ availability_status: 'online' }).eq('user_id', updated.worker_id);
   }
 
-  broadcast('job.status_changed', { job_id: jobId, status: newStatus, timestamp: updates[tsField] });
+  broadcast('job.status_changed', { job_id: jobId, status: newStatus, timestamp: updates[tsField] }, jobId);
 
   // Notify relevant party
   const notifyUserId = role === 'worker' ? job.customer_id : job.worker_id;
