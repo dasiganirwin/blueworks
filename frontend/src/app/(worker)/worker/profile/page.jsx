@@ -12,7 +12,7 @@ const ALL_SKILLS = [
   { value: 'carpenter',    label: 'Carpenter' },
   { value: 'welder',       label: 'Welder' },
   { value: 'painter',      label: 'Painter' },
-  { value: 'aircon-tech',  label: 'Aircon Technician' },
+  { value: 'aircon-tech',  label: 'Aircon Tech' },
   { value: 'mason',        label: 'Mason' },
   { value: 'general',      label: 'General Labor' },
 ];

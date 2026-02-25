@@ -10,10 +10,11 @@ import { Card } from '@/components/ui/Card';
 
 export default function WorkerDashboard() {
   const { user } = useAuthContext();
-  const [activeJobs, setActiveJobs]         = useState([]);
-  const [availability, setAvailability]     = useState('offline');
-  const [togglingAvail, setTogglingAvail]   = useState(false);
-  const [loading, setLoading]               = useState(true);
+  const [activeJobs, setActiveJobs]       = useState([]);
+  const [availability, setAvailability]   = useState('offline');
+  const [togglingAvail, setTogglingAvail] = useState(false);
+  const [totalEarned, setTotalEarned]     = useState(null);
+  const [loading, setLoading]             = useState(true);
   const router = useRouter();
 
   useEffect(() => {
@@ -23,7 +24,8 @@ export default function WorkerDashboard() {
       jobsApi.list({ status: 'en_route' }),
       jobsApi.list({ status: 'in_progress' }),
       workersApi.getById(user.id),
-    ]).then(([accepted, enRoute, inProg, worker]) => {
+      workersApi.getEarnings(),
+    ]).then(([accepted, enRoute, inProg, worker, earnings]) => {
       setActiveJobs([
         ...(accepted.data.data ?? []),
         ...(enRoute.data.data ?? []),
@@ -31,6 +33,9 @@ export default function WorkerDashboard() {
       ]);
       if (worker.data?.availability_status) {
         setAvailability(worker.data.availability_status);
+      }
+      if (earnings.data?.summary?.total_earned != null) {
+        setTotalEarned(earnings.data.summary.total_earned);
       }
     }).catch(() => { /* leave list empty on error */ })
       .finally(() => setLoading(false));
@@ -53,7 +58,7 @@ export default function WorkerDashboard() {
     <div className="page-container">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-xl font-bold text-gray-900">Hi, {user?.name?.split(' ')[0]}</h1>
+          <h1 className="text-xl font-bold text-gray-900">Hi, {user?.name?.split(' ')[0]} 👋</h1>
           <p className="text-sm text-gray-500">Ready to work?</p>
         </div>
         <div className="flex items-center gap-2">
@@ -76,8 +81,13 @@ export default function WorkerDashboard() {
           <p className="text-2xl font-bold text-gray-900 mt-1">{activeJobs.length}</p>
         </Card>
         <Card onClick={() => router.push('/worker/earnings')}>
-          <p className="text-xs text-gray-500">Earnings</p>
-          <p className="text-2xl font-bold text-brand-600 mt-1">View →</p>
+          <p className="text-xs text-gray-500">Total Earned</p>
+          <p className="text-2xl font-bold text-gray-900 mt-1">
+            {totalEarned != null
+              ? `₱${Number(totalEarned).toLocaleString('en-PH', { minimumFractionDigits: 2 })}`
+              : '₱0.00'}
+          </p>
+          <p className="text-xs text-brand-600 mt-1">View all →</p>
         </Card>
       </div>
 

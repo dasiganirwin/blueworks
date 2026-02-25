@@ -136,7 +136,7 @@ export default function AdminWorkersPage() {
                       <Link href={`/admin/workers/${w.id}`}>
                         <Button size="sm" variant="outline">View</Button>
                       </Link>
-                      {w.status !== 'active' && (
+                      {w.status === 'pending_approval' && (
                         <Button size="sm" onClick={() => setModal({ worker: w, action: 'approve' })}>Approve</Button>
                       )}
                       {w.status !== 'suspended' && (

@@ -82,7 +82,7 @@ export default function NearbyJobsPage() {
                 : 'bg-white text-gray-600 border-gray-300 hover:border-brand-400'
             }`}
           >
-            {cat === 'all' ? 'All' : cat.charAt(0).toUpperCase() + cat.slice(1)}
+            {cat === 'all' ? 'All' : cat === 'aircon-tech' ? 'Aircon Tech' : cat.charAt(0).toUpperCase() + cat.slice(1)}
           </button>
         ))}
       </div>
