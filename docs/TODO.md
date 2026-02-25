@@ -465,7 +465,7 @@ S3-01 + S3-04 + S3-05 + S3-06
 | Task ID | Task | Owner | File(s) | Definition of Done | Status |
 |---------|------|-------|---------|-------------------|--------|
 | S4-07 | Add `GET /workers/me` endpoint for worker self-profile | Lau | `backend/src/routes/workers.routes.js` | `GET /workers/me` returns authenticated worker's own profile (same shape as `GET /workers/:id`); used by profile edit page | ✅ Done |
-| S4-08 | QA pass — payment loop, email, profile edit, admin transactions | Alex | All Sprint 4 files | Manual test: Stripe card payment end-to-end, cash confirm flow, email delivery check (inbox), profile edit persists, admin transactions visible; 0 console errors | To Do |
+| S4-08 | QA pass — payment loop, email, profile edit, admin transactions | Alex | All Sprint 4 files | Manual test: Stripe card payment end-to-end, cash confirm flow, email delivery check (inbox), profile edit persists, admin transactions visible; 0 console errors | ✅ Done |
 
 ---
 
