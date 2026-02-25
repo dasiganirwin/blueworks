@@ -22,17 +22,17 @@ export default function NearbyJobsPage() {
     },
   });
 
-  useEffect(() => {
-    const fetchNearby = (lat, lng, cat = category) => {
-      const params = { lat, lng, ...(cat !== 'all' && { category: cat }) };
-      jobsApi.nearby(params)
-        .then(({ data }) => setJobs(data.data ?? []))
-        .catch(() => { /* leave list empty */ })
-        .finally(() => setLoading(false));
-    };
+  const fetchNearby = (lat, lng, cat = category) => {
+    setLoading(true);
+    const params = { lat, lng, ...(cat !== 'all' && { category: cat }) };
+    jobsApi.nearby(params)
+      .then(({ data }) => setJobs(data.data ?? []))
+      .catch(() => { /* leave list empty */ })
+      .finally(() => setLoading(false));
+  };
 
+  useEffect(() => {
     if (!navigator.geolocation) {
-      // No geolocation API — fall back to Manila coords immediately
       fetchNearby(14.5995, 120.9842);
       return;
     }
@@ -43,14 +43,12 @@ export default function NearbyJobsPage() {
         fetchNearby(c.latitude, c.longitude);
       },
       () => {
-        // Permission denied or unavailable — fall back
         fetchNearby(14.5995, 120.9842);
       }
     );
   }, []);
 
   const refresh = (cat = category) => {
-    setLoading(true);
     const lat = coords?.lat ?? 14.5995;
     const lng = coords?.lng ?? 120.9842;
     fetchNearby(lat, lng, cat);
