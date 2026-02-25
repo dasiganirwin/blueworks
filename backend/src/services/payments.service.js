@@ -4,15 +4,18 @@ const { Errors } = require('../utils/errors');
 const { broadcast } = require('../websocket');
 const notificationsService = require('./notifications.service');
 
-async function initiatePayment(customerId, { job_id, method, amount, currency }) {
+async function initiatePayment(userId, userRole, { job_id, method, amount, currency }) {
   const { data: job } = await supabase
     .from('jobs')
-    .select('id, worker_id, status')
+    .select('id, customer_id, worker_id, status')
     .eq('id', job_id)
     .maybeSingle();
 
-  if (!job)                     throw Errors.NOT_FOUND('job');
+  if (!job)                       throw Errors.NOT_FOUND('job');
+  if (userRole !== 'admin' && job.customer_id !== userId) throw Errors.FORBIDDEN();
   if (job.status !== 'completed') throw Errors.JOB_NOT_COMPLETED();
+
+  const customerId = job.customer_id;
 
   const { data: existing } = await supabase
     .from('payments')

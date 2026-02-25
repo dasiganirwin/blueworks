@@ -4,6 +4,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { jobsApi } from '@/lib/api';
 import { Input, Textarea, Select } from '@/components/ui/Input';
 import { AddressAutocomplete } from '@/components/ui/AddressAutocomplete';
+import { JobMap } from '@/components/ui/JobMap';
 import { Button } from '@/components/ui/Button';
 import { useToast } from '@/components/ui/Toast';
 
@@ -298,7 +299,7 @@ export default function NewJobPage() {
         )}
 
         {/* ── Step 2: Location ─────────────────────────────────────────────── */}
-        <div ref={step2Ref}>
+        <div ref={step2Ref} className="space-y-3">
           <AddressAutocomplete
             label="Your address"
             required
@@ -306,6 +307,14 @@ export default function NewJobPage() {
             error={fieldErrors.address}
             onSelect={handleAddressSelect}
           />
+          {form.lat !== '' && form.lng !== '' && (
+            <JobMap
+              lat={parseFloat(form.lat)}
+              lng={parseFloat(form.lng)}
+              label="Pin location"
+              markerColor="2563eb"
+            />
+          )}
         </div>
 
         {/* ── Step 3: Photos & Submit ──────────────────────────────────────── */}

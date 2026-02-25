@@ -30,8 +30,7 @@ export function JobChat({ jobId, currentUserId, readOnly = false }) {
     if (!content.trim()) return;
     setSending(true);
     try {
-      const { data } = await jobsApi.sendMessage(jobId, content.trim());
-      setMessages(prev => [...prev, data]);
+      await jobsApi.sendMessage(jobId, content.trim());
       setContent('');
     } catch {
       // silently ignore — message failed (e.g. job closed race condition)

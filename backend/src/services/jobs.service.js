@@ -245,7 +245,7 @@ async function sendMessage(jobId, senderId, role, content) {
 
   if (error) throw error;
 
-  broadcast('message.received', { job_id: jobId, message });
+  broadcast('message.received', { job_id: jobId, message }, jobId);
   return message;
 }
 

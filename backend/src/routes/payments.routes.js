@@ -26,7 +26,7 @@ router.post('/webhook',
   ctrl.handleWebhook
 );
 
-router.post('/',               authenticate, requireRole('customer'),        validate(initiateSchema), ctrl.initiatePayment);
+router.post('/',               authenticate, requireRole('customer', 'admin'), validate(initiateSchema), ctrl.initiatePayment);
 router.get('/:id',             authenticate,                                  ctrl.getPayment);
 router.post('/:id/cash-confirm', authenticate, requireRole('worker'),         ctrl.cashConfirm);
 router.post('/:id/refund',     authenticate, requireRole('admin'),            validate(refundSchema),   ctrl.refund);
