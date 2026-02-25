@@ -27,9 +27,17 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en">
       <body>
+        <a
+          href="#main-content"
+          className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-50 focus:bg-white focus:text-brand-600 focus:px-3 focus:py-2 focus:rounded-lg focus:shadow-lg focus:font-medium focus:text-sm"
+        >
+          Skip to main content
+        </a>
         <AuthProvider>
           <ToastProvider>
-            {children}
+            <div id="main-content">
+              {children}
+            </div>
           </ToastProvider>
         </AuthProvider>
       </body>

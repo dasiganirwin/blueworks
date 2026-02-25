@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { jobsApi } from '@/lib/api';
 import { useAuthContext } from '@/context/AuthContext';
@@ -56,19 +56,23 @@ const ACTION_CONFIG = {
 
 export default function WorkerJobDetailPage() {
   const { id }   = useParams();
-  const router   = useRouter();
   const { user } = useAuthContext();
   const [job, setJob]         = useState(null);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
 
-  const { sendLocationPing } = useWebSocket({});
+  const { sendLocationPing, subscribeToJob } = useWebSocket({
+    'job.status_changed': ({ job_id, status }) => {
+      if (job_id === id) setJob(j => j ? { ...j, status } : j);
+    },
+  });
 
   useEffect(() => {
     jobsApi.getById(id)
       .then(({ data }) => setJob(data))
       .catch(() => setJob(null))
       .finally(() => setLoading(false));
+    subscribeToJob(id);
   }, [id]);
 
   // ── Broadcast worker location every 10s while en_route or in_progress ──────
@@ -108,12 +112,9 @@ export default function WorkerJobDetailPage() {
 
   return (
     <div className="page-container space-y-4">
-      <button
-        onClick={() => router.back()}
-        className="flex items-center gap-1 text-sm text-gray-500 hover:text-brand-600 mb-3"
-      >
-        ← Back
-      </button>
+      <Link href="/worker/jobs/nearby" className="flex items-center gap-1 text-sm text-gray-500 hover:text-brand-600 mb-3">
+        ← Back to Find Jobs
+      </Link>
       <nav className="text-xs text-gray-500 mb-4 flex items-center gap-1">
         <Link href="/worker/dashboard" className="hover:text-brand-600">Dashboard</Link>
         <span>/</span>

@@ -4,6 +4,7 @@ import { workersApi } from '@/lib/api';
 import { Card } from '@/components/ui/Card';
 import { Input, Select } from '@/components/ui/Input';
 import { Badge } from '@/components/ui/Badge';
+import { formatDate } from '@/lib/formatDate';
 
 const STATUS_OPTIONS = [
   { value: 'all',      label: 'All' },
@@ -138,7 +139,7 @@ export default function EarningsPage() {
                 <div>
                   <p className="text-sm font-medium">Job #{tx.job_id.slice(0, 8)}</p>
                   <p className="text-xs text-gray-400">
-                    {tx.method} · {new Date(tx.paid_at).toLocaleDateString('en-PH')}
+                    {tx.method} · {formatDate(tx.paid_at)}
                   </p>
                   {tx.status && tx.status !== 'completed' && (
                     <div className="mt-1">

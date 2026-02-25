@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { jobsApi, paymentsApi } from '@/lib/api';
 import { useAuthContext } from '@/context/AuthContext';
@@ -15,7 +15,6 @@ import { useToast } from '@/components/ui/Toast';
 
 export default function CustomerJobDetailPage() {
   const { id }          = useParams();
-  const router          = useRouter();
   const { user }        = useAuthContext();
   const { showToast }   = useToast();
   const [job, setJob]               = useState(null);
@@ -63,8 +62,12 @@ export default function CustomerJobDetailPage() {
   const initiatePayment = async () => {
     setPayError('');
     const amount = parseFloat(payAmount);
-    if (!payAmount || isNaN(amount) || amount <= 0) {
-      setPayError('Please enter a valid amount.');
+    if (!payAmount || isNaN(amount) || amount < 50) {
+      setPayError('Minimum payment is ₱50.');
+      return;
+    }
+    if (amount > 500000) {
+      setPayError('Maximum payment is ₱500,000.');
       return;
     }
     setProcessing(true);
@@ -92,12 +95,9 @@ export default function CustomerJobDetailPage() {
 
   return (
     <div className="page-container space-y-4">
-      <button
-        onClick={() => router.back()}
-        className="flex items-center gap-1 text-sm text-gray-500 hover:text-brand-600 mb-3"
-      >
-        ← Back
-      </button>
+      <Link href="/jobs" className="flex items-center gap-1 text-sm text-gray-500 hover:text-brand-600 mb-3">
+        ← Back to My Jobs
+      </Link>
       <nav className="text-xs text-gray-500 mb-4 flex items-center gap-1">
         <Link href="/dashboard" className="hover:text-brand-600">Dashboard</Link>
         <span>/</span>
@@ -207,7 +207,8 @@ export default function CustomerJobDetailPage() {
             <label className="text-sm font-medium text-gray-700 block mb-1">Amount (₱ PHP)</label>
             <input
               type="number"
-              min="1"
+              min="50"
+              max="500000"
               step="0.01"
               placeholder="Amount in ₱ PHP, e.g. 850"
               value={payAmount}

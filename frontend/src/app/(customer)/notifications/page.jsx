@@ -3,18 +3,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { notificationsApi } from '@/lib/api';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
-
-function formatTimestamp(ts) {
-  if (!ts) return '';
-  const date = new Date(ts);
-  return date.toLocaleString(undefined, {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-}
+import { formatRelative } from '@/lib/formatDate';
 
 function SkeletonCard() {
   return (
@@ -139,7 +128,7 @@ export default function NotificationsPage() {
                     </p>
                   )}
                   <p className="text-xs text-gray-400 mt-1">
-                    {formatTimestamp(n.created_at)}
+                    {formatRelative(n.created_at)}
                   </p>
                 </div>
               </div>
