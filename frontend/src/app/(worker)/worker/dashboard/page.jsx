@@ -17,19 +17,24 @@ export default function WorkerDashboard() {
   const router = useRouter();
 
   useEffect(() => {
+    if (!user?.id) return;
     Promise.all([
       jobsApi.list({ status: 'accepted' }),
       jobsApi.list({ status: 'en_route' }),
       jobsApi.list({ status: 'in_progress' }),
-    ]).then(([accepted, enRoute, inProg]) => {
+      workersApi.getById(user.id),
+    ]).then(([accepted, enRoute, inProg, worker]) => {
       setActiveJobs([
         ...(accepted.data.data ?? []),
         ...(enRoute.data.data ?? []),
         ...(inProg.data.data ?? []),
       ]);
+      if (worker.data?.availability_status) {
+        setAvailability(worker.data.availability_status);
+      }
     }).catch(() => { /* leave list empty on error */ })
       .finally(() => setLoading(false));
-  }, []);
+  }, [user?.id]);
 
   const toggleAvailability = async () => {
     const next = availability === 'online' ? 'offline' : 'online';

@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { jobsApi } from '@/lib/api';
+import { useToast } from '@/components/ui/Toast';
 import { useAuthContext } from '@/context/AuthContext';
 import { useWebSocket } from '@/hooks/useWebSocket';
 import { Badge } from '@/components/ui/Badge';
@@ -61,6 +62,7 @@ export default function WorkerJobDetailPage() {
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
 
+  const { showToast } = useToast();
   const { sendLocationPing, subscribeToJob } = useWebSocket({
     'job.status_changed': ({ job_id, status }) => {
       if (job_id === id) setJob(j => j ? { ...j, status } : j);
@@ -100,6 +102,8 @@ export default function WorkerJobDetailPage() {
       await jobsApi.updateStatus(id, next);
       const { data } = await jobsApi.getById(id);
       setJob(data);
+    } catch (err) {
+      showToast(err.response?.data?.error?.message ?? 'Failed to update status. Please try again.', 'error');
     } finally {
       setUpdating(false);
     }
