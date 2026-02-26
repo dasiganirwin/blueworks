@@ -37,10 +37,11 @@ const paymentsQuery = z.object({
   limit:  z.coerce.number().max(50).default(20),
 });
 
-router.get('/workers',       validateQuery(workerListQuery),  ctrl.listWorkers);
-router.patch('/workers/:id', validate(workerUpdateSchema),    ctrl.updateWorker);
-router.patch('/users/:id',   validate(userUpdateSchema),      ctrl.updateUser);
-router.get('/analytics',     validateQuery(analyticsQuery),   ctrl.getAnalytics);
-router.get('/payments',      validateQuery(paymentsQuery),    ctrl.listPayments);
+router.get('/workers',                    validateQuery(workerListQuery),  ctrl.listWorkers);
+router.patch('/workers/:id',              validate(workerUpdateSchema),    ctrl.updateWorker);
+router.patch('/users/:id',                validate(userUpdateSchema),      ctrl.updateUser);
+router.post('/users/:id/revoke-sessions',                                  ctrl.revokeUserSessions);
+router.get('/analytics',                  validateQuery(analyticsQuery),   ctrl.getAnalytics);
+router.get('/payments',                   validateQuery(paymentsQuery),    ctrl.listPayments);
 
 module.exports = router;

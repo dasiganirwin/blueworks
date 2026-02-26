@@ -4,6 +4,15 @@ import { useRouter, usePathname } from 'next/navigation';
 import { useState, useEffect, useRef } from 'react';
 import { useAuthContext } from '@/context/AuthContext';
 import { notificationsApi } from '@/lib/api';
+import api from '@/lib/api';
+
+// Convert VAPID public key (base64url) to Uint8Array for pushManager.subscribe()
+function urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+  const base64  = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const raw     = atob(base64);
+  return Uint8Array.from([...raw].map(c => c.charCodeAt(0)));
+}
 
 const NAV_LINKS = {
   customer: [
@@ -46,22 +55,61 @@ export function Navbar() {
   const [unreadCount, setUnreadCount] = useState(0);
   const drawerRef = useRef(null);
 
-  // Fetch unread notification count — customer only
+  // S5-07: Fetch unread count on mount + on page visibility regain (no more 30s polling)
   useEffect(() => {
     if (user?.role !== 'customer') return;
 
     const fetchUnread = async () => {
       try {
         const { data } = await notificationsApi.list({ read: false });
-        const items = data?.data ?? [];
-        setUnreadCount(items.length);
+        setUnreadCount(data?.data?.length ?? 0);
       } catch { /* silent */ }
     };
 
     fetchUnread();
-    const interval = setInterval(fetchUnread, 30_000);
-    return () => clearInterval(interval);
+
+    // Re-fetch when user returns to the tab (replaces polling)
+    const onVisible = () => { if (document.visibilityState === 'visible') fetchUnread(); };
+    document.addEventListener('visibilitychange', onVisible);
+
+    // Listen for PUSH_RECEIVED messages from the service worker
+    const onSwMessage = (e) => { if (e.data?.type === 'PUSH_RECEIVED') fetchUnread(); };
+    navigator.serviceWorker?.addEventListener('message', onSwMessage);
+
+    return () => {
+      document.removeEventListener('visibilitychange', onVisible);
+      navigator.serviceWorker?.removeEventListener('message', onSwMessage);
+    };
   }, [user?.role]);
+
+  // S5-07: Subscribe to Web Push on mount (fire-and-forget, graceful failure)
+  useEffect(() => {
+    if (!user) return;
+    if (typeof window === 'undefined' || !('serviceWorker' in navigator) || !('PushManager' in window)) return;
+
+    const subscribePush = async () => {
+      try {
+        const { data } = await api.get('/push/vapid-public-key');
+        if (!data?.key) return;
+
+        const reg = await navigator.serviceWorker.ready;
+        const existing = await reg.pushManager.getSubscription();
+        if (existing) return; // already subscribed
+
+        const permission = await Notification.requestPermission();
+        if (permission !== 'granted') return;
+
+        const sub = await reg.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlBase64ToUint8Array(data.key),
+        });
+
+        await api.post('/push/subscribe', sub.toJSON());
+      } catch { /* ignore — push is optional */ }
+    };
+
+    subscribePush();
+  }, [user?.id]);
 
   // Clear badge when user visits /notifications
   useEffect(() => {

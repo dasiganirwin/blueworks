@@ -536,7 +536,7 @@ S4-01 + S4-02 + S4-03 + S4-04 + S4-05 + S4-06
 
 **Sprint Goal:** Harden the MVP for public launch — consolidate redundant API calls, tighten auth security, add error resilience, and complete admin operational tooling. Deferred Sprint 4 items (Stripe live, Resend email) remain blocked on credentials and are tracked separately.
 
-**Last Updated:** 2026-02-26
+**Last Updated:** 2026-02-26 ✅ SPRINT IN PROGRESS
 **Managed by:** Orchestrator Agent
 
 ---
@@ -553,13 +553,27 @@ S4-01 + S4-02 + S4-03 + S4-04 + S4-05 + S4-06
 
 ## Task Board
 
+### 🚨 HIGHEST PRIORITY — Pricing Model (implement before all other Sprint 5 tasks)
+
+> Reference: `/docs/pricing-model.md`
+
+| Task ID | Task | Owner | File(s) | Definition of Done | Status |
+|---------|------|-------|---------|-------------------|--------|
+| S5-P1 | DB migration — add budget + pricing fields to jobs table | Lau | `backend/migrations/003_add_pricing_fields.sql` | Migration adds `budget_min INT`, `budget_max INT`, `agreed_price INT`, `worker_counter INT` to `jobs` table; applied in Supabase SQL editor; existing rows unaffected (all nullable) | ✅ Done |
+| S5-P2 | Backend — update job creation + add counter-offer endpoint | Lau | `backend/src/routes/jobs.routes.js`, `backend/src/services/jobs.service.js` | `POST /jobs` accepts `budget_min` + `budget_max` (both required); `POST /jobs/:id/counter` allows assigned worker to set `worker_counter` price; `POST /jobs/:id/confirm-price` locks `agreed_price` (called by customer); input validated; 403 if wrong role | ✅ Done |
+| S5-P3 | Customer job posting UI — budget range input | Jei | `src/app/(customer)/jobs/new/page.jsx` | Budget range fields (Min ₱ / Max ₱) required on job posting form; "typical range" hint shown per category; validation blocks submit if min > max or either is ≤ 0; amounts sent as integers to backend | ✅ Done |
+| S5-P4 | Worker job detail — accept / counter-offer UI | Jei | `src/app/(worker)/worker/jobs/[id]/page.jsx` | Customer's budget range displayed prominently on job card; worker sees two actions: "Accept" (agrees to `budget_max`) and "Counter-offer" (numeric input for proposed price, with customer range shown as reference); calls correct backend endpoint on each action | ✅ Done |
+| S5-P5 | Customer counter-offer flow — review + confirm/decline | Jei | `src/app/(customer)/jobs/[id]/page.jsx` | When `worker_counter` is set and `agreed_price` is null, customer sees counter-offer amount with "Confirm" and "Decline" actions; Confirm locks `agreed_price` via `POST /jobs/:id/confirm-price`; Decline clears worker and returns job to pool; push/in-app notification triggers on counter received; `agreed_price` displayed as locked price for duration of job | ✅ Done |
+
+---
+
 ### 🔴 HIGH PRIORITY
 
 | Task ID | Task | Owner | File(s) | Definition of Done | Status |
 |---------|------|-------|---------|-------------------|--------|
-| S5-01 | Backend multi-status job filter | Lau | `backend/src/routes/jobs.routes.js`, `backend/src/services/jobs.service.js`, `frontend/src/app/(worker)/worker/dashboard/page.jsx` | `GET /jobs?status=accepted,en_route,in_progress` supported via comma-separated status param; worker dashboard reduced from 3 parallel calls to 1; response unchanged | To Do |
-| S5-02 | Auth route rate limiting — brute-force protection | Lau | `backend/src/routes/auth.routes.js`, `backend/src/app.js` | Stricter per-route limits applied: login (10 req / 15 min per IP), OTP send (3 req / 15 min per IP), register (5 req / hour per IP); exceeding limit returns 429 with clear message | To Do |
-| S5-03 | React error boundaries — catch JS crashes gracefully | Jei | `frontend/src/app/(customer)/layout.jsx`, `frontend/src/app/(worker)/layout.jsx`, `frontend/src/app/(admin)/layout.jsx` | `ErrorBoundary` component wraps each role layout; uncaught JS errors render a friendly fallback UI (icon + message + "Go to Dashboard" link) instead of white screen | To Do |
+| S5-01 | Backend multi-status job filter | Lau | `backend/src/routes/jobs.routes.js`, `backend/src/services/jobs.service.js`, `frontend/src/app/(worker)/worker/dashboard/page.jsx` | `GET /jobs?status=accepted,en_route,in_progress` supported via comma-separated status param; worker dashboard reduced from 3 parallel calls to 1; response unchanged | ✅ Done |
+| S5-02 | Auth route rate limiting — brute-force protection | Lau | `backend/src/routes/auth.routes.js`, `backend/src/app.js` | Stricter per-route limits applied: login (10 req / 15 min per IP), OTP send (3 req / 15 min per IP), register (5 req / hour per IP); exceeding limit returns 429 with clear message | ✅ Done |
+| S5-03 | React error boundaries — catch JS crashes gracefully | Jei | `frontend/src/app/(customer)/layout.jsx`, `frontend/src/app/(worker)/layout.jsx`, `frontend/src/app/(admin)/layout.jsx` | `ErrorBoundary` component wraps each role layout; uncaught JS errors render a friendly fallback UI (icon + message + "Go to Dashboard" link) instead of white screen | ✅ Done |
 
 ---
 
@@ -567,9 +581,9 @@ S4-01 + S4-02 + S4-03 + S4-04 + S4-05 + S4-06
 
 | Task ID | Task | Owner | File(s) | Definition of Done | Status |
 |---------|------|-------|---------|-------------------|--------|
-| S5-04 | Analytics page — error state + fetch naming fix | Jei | `frontend/src/app/(admin)/admin/analytics/page.jsx` | `const fetch` renamed to `loadAnalytics` (no longer shadows global `fetch`); `.catch()` added with error state and "Try again" button; consistent with admin dashboard error pattern | To Do |
-| S5-05 | Admin workers list — pagination | Jei | `frontend/src/app/(admin)/admin/workers/page.jsx`, `backend/src/routes/admin.routes.js` | Workers list fetches max 20 per page; pagination controls (Previous / Page N of M / Next) match admin payments pattern; `GET /admin/workers` accepts `page` + `limit` params | To Do |
-| S5-06 | Session security — logout all devices | Lau | `backend/src/routes/auth.routes.js`, `backend/src/services/auth.service.js` | `POST /auth/logout-all` revokes all active refresh tokens for the authenticated user; admin can trigger logout-all for any user via `POST /admin/users/:id/revoke-sessions`; endpoint requires admin role | To Do |
+| S5-04 | Analytics page — error state + fetch naming fix | Jei | `frontend/src/app/(admin)/admin/analytics/page.jsx` | `const fetch` renamed to `loadAnalytics` (no longer shadows global `fetch`); `.catch()` added with error state and "Try again" button; consistent with admin dashboard error pattern | ✅ Done |
+| S5-05 | Admin workers list — pagination | Jei | `frontend/src/app/(admin)/admin/workers/page.jsx`, `backend/src/routes/admin.routes.js` | Workers list fetches max 20 per page; pagination controls (Previous / Page N of M / Next) match admin payments pattern; `GET /admin/workers` accepts `page` + `limit` params | ✅ Done |
+| S5-06 | Session security — logout all devices | Lau | `backend/src/routes/auth.routes.js`, `backend/src/services/auth.service.js` | `POST /auth/logout-all` revokes all active refresh tokens for the authenticated user; admin can trigger logout-all for any user via `POST /admin/users/:id/revoke-sessions`; endpoint requires admin role | ✅ Done |
 
 ---
 
@@ -577,7 +591,7 @@ S4-01 + S4-02 + S4-03 + S4-04 + S4-05 + S4-06
 
 | Task ID | Task | Owner | File(s) | Definition of Done | Status |
 |---------|------|-------|---------|-------------------|--------|
-| S5-07 | Web Push notifications — replace navbar polling | Jei + Lau | `frontend/public/sw.js`, `backend/src/services/notifications.service.js` | Service worker subscribes to Web Push; backend stores push subscriptions in `push_subscriptions` table; `notifications.service` sends push on key events (job accepted, completed, dispute); 30s navbar polling removed | To Do |
+| S5-07 | Web Push notifications — replace navbar polling | Jei + Lau | `frontend/worker/index.js`, `backend/src/services/push.service.js`, `backend/src/routes/push.routes.js` | Service worker subscribes to Web Push; backend stores push subscriptions in `push_subscriptions` table; `notifications.service` sends push on key events; 30s navbar polling replaced with visibilitychange + SW message | ✅ Done |
 | S5-08 | QA pass — Sprint 5 + deferred S2-10 regression | Alex | All Sprint 5 files + Sprint 2/3/4 | Full regression: real-time flows, chat, earnings, category filter, cash confirm, worker profile edit, admin transactions, pagination, error boundaries; 0 console errors in prod build | To Do |
 
 ---
@@ -585,6 +599,14 @@ S4-01 + S4-02 + S4-03 + S4-04 + S4-05 + S4-06
 ## Dependency Chain
 
 ```
+── PRICING MODEL (do first) ──────────────────────────────────────────────
+S5-P1 (DB migration — Lau)
+  └── S5-P2 (Backend API: job creation + counter endpoint — Lau)
+        ├── S5-P3 (Customer job posting UI — Jei)
+        └── S5-P4 (Worker accept/counter UI — Jei)
+              └── S5-P5 (Customer confirm/decline counter — Jei)
+
+── SPRINT 5 CORE ─────────────────────────────────────────────────────────
 S5-02 (Auth rate limiting)     ← independent, do first — security
 S5-01 (Multi-status filter)
   └── S5-08 (QA — runs last)
@@ -601,6 +623,7 @@ B-15 (iOS Web Push confirm)
   └── S5-07 (Web Push)
         └── S5-08 (QA)
 
+S5-P1 + S5-P2 + S5-P3 + S5-P4 + S5-P5 +
 S5-01 + S5-02 + S5-03 + S5-04 + S5-05 + S5-06 + S5-07
   └── S5-08 (QA — runs last; includes deferred S2-10)
 ```
@@ -623,8 +646,8 @@ S5-01 + S5-02 + S5-03 + S5-04 + S5-05 + S5-06 + S5-07
 
 | Owner | Tasks |
 |-------|-------|
-| **Lau** | S5-01 (multi-status backend), S5-02 (rate limiting), S5-06 (logout-all) |
-| **Jei** | S5-03 (error boundaries), S5-04 (analytics fix), S5-05 (workers pagination), S5-07 (Web Push frontend) |
+| **Lau** | **S5-P1, S5-P2** (pricing DB + API), S5-01 (multi-status backend), S5-02 (rate limiting), S5-06 (logout-all) |
+| **Jei** | **S5-P3, S5-P4, S5-P5** (pricing UI flows), S5-03 (error boundaries), S5-04 (analytics fix), S5-05 (workers pagination), S5-07 (Web Push frontend) |
 | **Lau + Jei** | S5-07 (Web Push — backend + frontend joint task) |
 | **Alex** | S5-08 (QA — runs last; includes deferred S2-10) |
 | **Irwin** | Resolve B-15 (iOS Web Push target version) |
@@ -633,14 +656,17 @@ S5-01 + S5-02 + S5-03 + S5-04 + S5-05 + S5-06 + S5-07
 
 ## Suggested Execution Order
 
-**Lau:** `S5-02 → S5-01 → S5-06 → S5-07 (backend)`
-**Jei:** `S5-04 → S5-03 → S5-05 → S5-07 (frontend)`
+**Lau:** `S5-P1 → S5-P2 → S5-02 → S5-01 → S5-06 → S5-07 (backend)`
+**Jei:** `S5-P3 → S5-P4 → S5-P5 → S5-04 → S5-03 → S5-05 → S5-07 (frontend)`
 **Alex:** `S5-08 (after all above Done)`
 
 ---
 
 ## Notes
 
+- **S5-P1 migration:** Add `budget_min INT`, `budget_max INT`, `agreed_price INT`, `worker_counter INT` to `jobs` table. All nullable — no backfill needed for existing rows. Apply via Supabase SQL editor.
+- **S5-P2 backend:** `POST /jobs` must validate `budget_min` and `budget_max` (both required, integers > 0, min ≤ max). New endpoint `POST /jobs/:id/counter` — worker only, job must be `pending` with worker assigned. `POST /jobs/:id/confirm-price` — customer only, sets `agreed_price = worker_counter`, triggers notification.
+- **S5-P3/P4/P5 frontend:** Amounts always displayed in ₱ (peso integers). Typical range hint per category is informational only — not enforced. `agreed_price` must be shown prominently once locked. See `/docs/pricing-model.md` for full UX spec.
 - S5-01 multi-status: extend `listJobs` Zod schema to accept `status` as either a single string or comma-separated string; split in service layer before querying. Do NOT break existing single-value callers.
 - S5-02 rate limiting: use `express-rate-limit` (already installed); create per-route limiters rather than relying only on the global 100 req/15 min limit. Auth routes are high-value attack targets.
 - S5-03 error boundaries: Next.js App Router uses `error.jsx` files per segment for server component errors; for client-side JS errors, a React `ErrorBoundary` class component is still needed. Place one at each role layout level.

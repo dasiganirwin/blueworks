@@ -1,6 +1,7 @@
 'use client';
 import { Navbar } from '@/components/layout/Navbar';
 import { useAuth } from '@/hooks/useAuth';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 
 export default function WorkerLayout({ children }) {
   const { loading, user } = useAuth('worker');
@@ -10,7 +11,9 @@ export default function WorkerLayout({ children }) {
   return (
     <>
       <Navbar />
-      <main>{children}</main>
+      <ErrorBoundary dashboardPath="/worker/dashboard">
+        <main>{children}</main>
+      </ErrorBoundary>
     </>
   );
 }

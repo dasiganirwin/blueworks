@@ -122,6 +122,17 @@ const getAnalytics = async (req, res, next) => {
   } catch (e) { next(e); }
 };
 
+// S5-06: Admin revoke all sessions for any user
+const authSvc = require('../services/auth.service');
+const revokeUserSessions = async (req, res, next) => {
+  try {
+    const { data: user } = await supabase.from('users').select('id').eq('id', req.params.id).maybeSingle();
+    if (!user) return next(Errors.NOT_FOUND('user'));
+    await authSvc.logoutAll(req.params.id);
+    res.sendStatus(204);
+  } catch (e) { next(e); }
+};
+
 const listPayments = async (req, res, next) => {
   try {
     const { status, page = 1, limit = 20 } = req.query;
@@ -142,4 +153,4 @@ const listPayments = async (req, res, next) => {
   } catch (e) { next(e); }
 };
 
-module.exports = { listWorkers, updateWorker, updateUser, getAnalytics, listPayments };
+module.exports = { listWorkers, updateWorker, updateUser, revokeUserSessions, getAnalytics, listPayments };

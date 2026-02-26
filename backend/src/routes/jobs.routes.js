@@ -22,8 +22,13 @@ const createJobSchema = z.object({
   }),
   urgency:      z.enum(['immediate', 'scheduled']),
   scheduled_at: z.string().datetime().optional(),
+  budget_min:   z.number().int().positive(),
+  budget_max:   z.number().int().positive(),
 }).refine(d => d.urgency !== 'scheduled' || d.scheduled_at, {
   message: 'scheduled_at is required when urgency is scheduled',
+}).refine(d => d.budget_min <= d.budget_max, {
+  message: 'budget_min must be less than or equal to budget_max',
+  path: ['budget_min'],
 });
 
 const statusSchema = z.object({
@@ -46,15 +51,25 @@ const nearbyQuerySchema = z.object({
   category: z.string().optional(),
 });
 
+const counterSchema = z.object({
+  price: z.number().int().positive(),
+});
+
+const confirmPriceSchema = z.object({
+  confirmed: z.boolean(),
+});
+
 // Routes — order matters: /nearby before /:id
-router.get('/nearby',          authenticate, requireRole('worker'),   validateQuery(nearbyQuerySchema), ctrl.getNearbyJobs);
-router.get('/',                authenticate,                          validateQuery(listQuerySchema),   ctrl.listJobs);
-router.post('/',               authenticate, requireRole('customer'), validate(createJobSchema),        ctrl.createJob);
-router.get('/:id',             authenticate,                          ctrl.getJob);
-router.patch('/:id/status',    authenticate,                          validate(statusSchema),           ctrl.updateStatus);
-router.post('/:id/reject',     authenticate, requireRole('worker'),                                     ctrl.rejectJob);
-router.post('/:id/photos',     authenticate, requireRole('customer'), upload.array('photos', 5),       ctrl.uploadPhotos);
-router.delete('/:id',          authenticate, requireRole('admin'),                                      ctrl.deleteJob);
+router.get('/nearby',               authenticate, requireRole('worker'),   validateQuery(nearbyQuerySchema), ctrl.getNearbyJobs);
+router.get('/',                     authenticate,                          validateQuery(listQuerySchema),   ctrl.listJobs);
+router.post('/',                    authenticate, requireRole('customer'), validate(createJobSchema),        ctrl.createJob);
+router.get('/:id',                  authenticate,                          ctrl.getJob);
+router.patch('/:id/status',         authenticate,                          validate(statusSchema),           ctrl.updateStatus);
+router.post('/:id/reject',          authenticate, requireRole('worker'),                                     ctrl.rejectJob);
+router.post('/:id/counter',         authenticate, requireRole('worker'),   validate(counterSchema),          ctrl.counterOffer);
+router.post('/:id/confirm-price',   authenticate, requireRole('customer'), validate(confirmPriceSchema),     ctrl.confirmPrice);
+router.post('/:id/photos',          authenticate, requireRole('customer'), upload.array('photos', 5),        ctrl.uploadPhotos);
+router.delete('/:id',               authenticate, requireRole('admin'),                                      ctrl.deleteJob);
 
 // Messages nested under jobs
 router.get('/:id/messages',    authenticate, ctrl.getMessages);

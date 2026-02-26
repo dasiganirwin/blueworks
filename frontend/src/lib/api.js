@@ -67,15 +67,17 @@ export const workersApi = {
 
 // ── Jobs ─────────────────────────────────────────────────────
 export const jobsApi = {
-  create:        (body)         => api.post('/jobs', body),
-  list:          (p)            => api.get('/jobs', { params: p }),
-  nearby:        (p)            => api.get('/jobs/nearby', { params: p }),
-  getById:       (id)           => api.get(`/jobs/${id}`),
-  updateStatus:  (id, status)   => api.patch(`/jobs/${id}/status`, { status }),
-  reject:        (id)           => api.post(`/jobs/${id}/reject`),
-  uploadPhotos:  (id, formData) => api.post(`/jobs/${id}/photos`, formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
-  getMessages:   (id, p)        => api.get(`/jobs/${id}/messages`, { params: p }),
-  sendMessage:   (id, content)  => api.post(`/jobs/${id}/messages`, { content }),
+  create:         (body)         => api.post('/jobs', body),
+  list:           (p)            => api.get('/jobs', { params: p }),
+  nearby:         (p)            => api.get('/jobs/nearby', { params: p }),
+  getById:        (id)           => api.get(`/jobs/${id}`),
+  updateStatus:   (id, status)   => api.patch(`/jobs/${id}/status`, { status }),
+  reject:         (id)           => api.post(`/jobs/${id}/reject`),
+  uploadPhotos:   (id, formData) => api.post(`/jobs/${id}/photos`, formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
+  getMessages:    (id, p)        => api.get(`/jobs/${id}/messages`, { params: p }),
+  sendMessage:    (id, content)  => api.post(`/jobs/${id}/messages`, { content }),
+  counterOffer:   (id, price)       => api.post(`/jobs/${id}/counter`, { price }),
+  confirmPrice:   (id, confirmed)   => api.post(`/jobs/${id}/confirm-price`, { confirmed }),
 };
 
 // ── Payments ─────────────────────────────────────────────────
