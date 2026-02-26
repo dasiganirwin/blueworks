@@ -39,6 +39,8 @@ export default function CustomerJobDetailPage() {
   const [disputeError, setDisputeError]   = useState('');
   const [disputeFiled, setDisputeFiled]   = useState(false);
   const [disputeSubmitting, setDisputeSubmitting] = useState(false);
+  const [counterConfirming, setCounterConfirming] = useState(false);
+  const [counterDeclining, setCounterDeclining]   = useState(false);
 
   const { subscribeToJob } = useWebSocket({
     'job.status_changed': ({ job_id, status }) => {
@@ -139,6 +141,32 @@ export default function CustomerJobDetailPage() {
     }
   };
 
+  const confirmCounter = async () => {
+    setCounterConfirming(true);
+    try {
+      const { data } = await jobsApi.confirmPrice(id, true);
+      setJob(j => ({ ...j, agreed_price: data.agreed_price ?? j.worker_counter }));
+      showToast('Price confirmed! The job will now begin.', 'success');
+    } catch (err) {
+      showToast(err.response?.data?.error?.message ?? 'Failed to confirm price. Please try again.', 'error');
+    } finally {
+      setCounterConfirming(false);
+    }
+  };
+
+  const declineCounter = async () => {
+    setCounterDeclining(true);
+    try {
+      await jobsApi.confirmPrice(id, false);
+      setJob(j => ({ ...j, worker_counter: null, worker_id: null, worker: null, status: 'pending' }));
+      showToast('Counter-offer declined. The job is back in the pool.', 'success');
+    } catch (err) {
+      showToast(err.response?.data?.error?.message ?? 'Failed to decline. Please try again.', 'error');
+    } finally {
+      setCounterDeclining(false);
+    }
+  };
+
   return (
     <div className="page-container space-y-4">
       <Link href="/jobs" className="flex items-center gap-1 text-sm text-gray-500 hover:text-brand-600 mb-3">
@@ -192,6 +220,41 @@ export default function CustomerJobDetailPage() {
           </Link>
           <p className="text-xs text-gray-400 mt-0.5">Tap to view profile</p>
         </Card>
+      )}
+
+      {/* Budget */}
+      {(job.budget_min != null || job.budget_max != null) && job.agreed_price == null && (
+        <Card>
+          <p className="text-xs text-gray-500 mb-1">Your Budget</p>
+          <p className="text-lg font-bold text-gray-900">
+            ₱{Number(job.budget_min).toLocaleString('en-PH')} – ₱{Number(job.budget_max).toLocaleString('en-PH')}
+          </p>
+        </Card>
+      )}
+
+      {/* Agreed price — visible once locked */}
+      {job.agreed_price != null && (
+        <Card>
+          <p className="text-xs text-gray-500 mb-1">Agreed Price</p>
+          <p className="text-xl font-bold text-success-700">₱{Number(job.agreed_price).toLocaleString('en-PH')}</p>
+        </Card>
+      )}
+
+      {/* Counter-offer from worker — needs customer review */}
+      {job.worker_counter != null && job.agreed_price == null && (
+        <div className="bg-brand-50 border border-brand-200 rounded-xl p-4 space-y-3">
+          <div className="flex items-start justify-between gap-2">
+            <div>
+              <p className="text-sm font-semibold text-brand-900">Counter-offer Received</p>
+              <p className="text-xs text-brand-700 mt-0.5">{job.worker?.name ?? 'The worker'} proposed a different price</p>
+            </div>
+            <p className="text-xl font-bold text-brand-700 shrink-0">₱{Number(job.worker_counter).toLocaleString('en-PH')}</p>
+          </div>
+          <div className="flex gap-3">
+            <Button variant="secondary" className="flex-1" loading={counterDeclining} onClick={declineCounter}>Decline</Button>
+            <Button className="flex-1" loading={counterConfirming} onClick={confirmCounter}>Confirm ₱{Number(job.worker_counter).toLocaleString('en-PH')}</Button>
+          </div>
+        </div>
       )}
 
       {/* Location */}

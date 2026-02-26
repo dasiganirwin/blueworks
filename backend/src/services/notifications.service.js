@@ -1,12 +1,14 @@
 const supabase = require('../config/supabase');
+const pushSvc  = require('./push.service');
 
 async function send(userId, type, title, body, payload = {}) {
   const { error } = await supabase.from('notifications').insert({ user_id: userId, type, title, body, payload });
   if (error) console.error('[notifications] insert error:', error);
 
-  // TODO: push via FCM / APNs using device_tokens
-  // const { data: devices } = await supabase.from('device_tokens').select('token, platform').eq('user_id', userId);
-  // for (const device of devices) { await pushToDevice(device, { title, body }); }
+  // S5-07: Send Web Push notification (graceful failure — never crash on push errors)
+  pushSvc.sendPush(userId, { title, body, type, payload }).catch(err => {
+    console.error('[notifications] push error:', err);
+  });
 }
 
 async function list(userId, { read, page = 1, limit = 20 }) {

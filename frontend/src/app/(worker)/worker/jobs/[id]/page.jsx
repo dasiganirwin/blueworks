@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { jobsApi, ratingsApi, paymentsApi } from '@/lib/api';
+import { Input } from '@/components/ui/Input';
 import { useToast } from '@/components/ui/Toast';
 import { Modal } from '@/components/ui/Modal';
 import { useAuthContext } from '@/context/AuthContext';
@@ -72,6 +73,10 @@ export default function WorkerJobDetailPage() {
   const [ratingDone, setRatingDone] = useState(false);
   const [cashConfirming, setCashConfirming] = useState(false);
   const [cashConfirmed, setCashConfirmed]   = useState(false);
+  const [counterOpen, setCounterOpen]       = useState(false);
+  const [counterPrice, setCounterPrice]     = useState('');
+  const [counterError, setCounterError]     = useState('');
+  const [counterSubmitting, setCounterSubmitting] = useState(false);
 
   const { showToast } = useToast();
   const { sendLocationPing, subscribeToJob } = useWebSocket({
@@ -154,6 +159,26 @@ export default function WorkerJobDetailPage() {
     }
   };
 
+  const handleCounterOffer = async () => {
+    const price = parseInt(counterPrice, 10);
+    if (!counterPrice || isNaN(price) || price <= 0) {
+      setCounterError('Please enter a valid price.');
+      return;
+    }
+    setCounterError('');
+    setCounterSubmitting(true);
+    try {
+      await jobsApi.counterOffer(id, price);
+      showToast('Counter-offer sent. Waiting for customer to confirm.', 'success');
+      setCounterOpen(false);
+      setCounterPrice('');
+    } catch (err) {
+      setCounterError(err.response?.data?.error?.message ?? 'Failed to send counter-offer.');
+    } finally {
+      setCounterSubmitting(false);
+    }
+  };
+
   const handleStatusUpdate = async () => {
     const next = NEXT_STATUS[job.status];
     if (!next) return;
@@ -197,6 +222,24 @@ export default function WorkerJobDetailPage() {
         <p className="font-semibold">{job.customer?.name}</p>
       </Card>
 
+      {/* Budget — visible before job is accepted */}
+      {job.status === 'pending' && (job.budget_min != null || job.budget_max != null) && (
+        <Card>
+          <p className="text-xs text-gray-500 mb-1">Customer&apos;s Budget</p>
+          <p className="text-xl font-bold text-brand-700">
+            ₱{Number(job.budget_min).toLocaleString('en-PH')} – ₱{Number(job.budget_max).toLocaleString('en-PH')}
+          </p>
+        </Card>
+      )}
+
+      {/* Agreed price — visible once locked */}
+      {job.agreed_price != null && (
+        <Card>
+          <p className="text-xs text-gray-500 mb-1">Agreed Price</p>
+          <p className="text-xl font-bold text-success-700">₱{Number(job.agreed_price).toLocaleString('en-PH')}</p>
+        </Card>
+      )}
+
       <Card>
         <p className="text-xs text-gray-500 mb-1">Location</p>
         <p className="text-sm">{job.location_address}</p>
@@ -233,7 +276,55 @@ export default function WorkerJobDetailPage() {
         </div>
       )}
 
-      {nextAction && (() => {
+      {/* Pending — Accept or Counter-offer */}
+      {job.status === 'pending' && (
+        <div className="space-y-3">
+          <Button className="w-full" size="lg" loading={updating} onClick={handleStatusUpdate}>
+            <span className="flex flex-col items-center gap-1 py-1">
+              <span className="flex items-center gap-2">
+                {ACTION_CONFIG.pending.icon}
+                <span className="font-semibold">Accept Job</span>
+              </span>
+              <span className="text-xs font-normal opacity-80">
+                {job.budget_max != null ? `Agree to ₱${Number(job.budget_max).toLocaleString('en-PH')}` : "Confirm you're taking this job"}
+              </span>
+            </span>
+          </Button>
+
+          <Button variant="outline" className="w-full" onClick={() => { setCounterOpen(o => !o); setCounterError(''); setCounterPrice(''); }}>
+            Make Counter-offer
+          </Button>
+
+          {counterOpen && (
+            <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 space-y-3">
+              <p className="text-sm font-medium text-gray-700">Your proposed price</p>
+              {(job.budget_min != null || job.budget_max != null) && (
+                <p className="text-xs text-gray-500">Customer range: ₱{Number(job.budget_min).toLocaleString('en-PH')} – ₱{Number(job.budget_max).toLocaleString('en-PH')}</p>
+              )}
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-500 pointer-events-none">₱</span>
+                <input
+                  type="number"
+                  min="1"
+                  step="1"
+                  placeholder="Enter your price"
+                  value={counterPrice}
+                  onChange={(e) => { setCounterPrice(e.target.value); setCounterError(''); }}
+                  className={`w-full border rounded-lg pl-8 pr-3 py-2 text-sm focus:outline-none focus:ring-1 ${counterError ? 'border-danger-400 focus:ring-danger-300' : 'border-gray-300 focus:border-brand-500 focus:ring-brand-300'}`}
+                />
+              </div>
+              {counterError && <p className="text-xs text-danger-600">{counterError}</p>}
+              <div className="flex gap-2">
+                <Button variant="secondary" className="flex-1" onClick={() => setCounterOpen(false)}>Cancel</Button>
+                <Button className="flex-1" loading={counterSubmitting} onClick={handleCounterOffer}>Send Counter-offer</Button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Other status actions */}
+      {nextAction && job.status !== 'pending' && (() => {
         const cfg = ACTION_CONFIG[job.status];
         return (
           <Button className="w-full" size="lg" loading={updating} onClick={handleStatusUpdate}>

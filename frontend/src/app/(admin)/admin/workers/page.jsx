@@ -15,22 +15,24 @@ const STATUS_OPTIONS = [
 
 export default function AdminWorkersPage() {
   const [workers, setWorkers]     = useState([]);
+  const [meta, setMeta]           = useState(null);
   const [filter, setFilter]       = useState('pending_approval');
+  const [page, setPage]           = useState(1);
   const [loading, setLoading]     = useState(true);
   const [modal, setModal]         = useState(null); // { worker, action }
   const [processing, setProcessing]       = useState(false);
   const [selectedIds, setSelectedIds]     = useState([]);
   const [bulkProcessing, setBulkProcessing] = useState(false);
 
-  const fetchWorkers = () => {
+  const fetchWorkers = (p = page, f = filter) => {
     setLoading(true);
     setSelectedIds([]);
-    adminApi.listWorkers({ status: filter })
-      .then(({ data }) => setWorkers(data.data ?? []))
+    adminApi.listWorkers({ status: f, page: p, limit: 20 })
+      .then(({ data }) => { setWorkers(data.data ?? []); setMeta(data.meta ?? null); })
       .finally(() => setLoading(false));
   };
 
-  useEffect(fetchWorkers, [filter]);
+  useEffect(() => { fetchWorkers(1, filter); setPage(1); }, [filter]);
 
   const toggleSelect = (id) => {
     setSelectedIds(prev =>
@@ -42,13 +44,18 @@ export default function AdminWorkersPage() {
     w => selectedIds.includes(w.id) && w.status === 'pending_approval'
   );
 
+  const handlePage = (next) => {
+    setPage(next);
+    fetchWorkers(next, filter);
+  };
+
   const handleBulkApprove = async () => {
     setBulkProcessing(true);
     try {
       await Promise.all(
         pendingSelectedWorkers.map(w => adminApi.updateWorker(w.id, { status: 'active' }))
       );
-      fetchWorkers();
+      fetchWorkers(page, filter);
     } finally {
       setBulkProcessing(false);
     }
@@ -60,7 +67,7 @@ export default function AdminWorkersPage() {
     try {
       await adminApi.updateWorker(modal.worker.id, { status: modal.action === 'approve' ? 'active' : 'suspended' });
       setModal(null);
-      fetchWorkers();
+      fetchWorkers(page, filter);
     } finally {
       setProcessing(false);
     }
@@ -69,7 +76,10 @@ export default function AdminWorkersPage() {
   return (
     <div className="admin-container">
       <div className="flex items-center justify-between mb-5 gap-3 flex-wrap">
-        <h1 className="text-xl font-bold text-gray-900">Workers</h1>
+        <div>
+          <h1 className="text-xl font-bold text-gray-900">Workers</h1>
+          {meta && <p className="text-xs text-gray-500 mt-0.5">{meta.total} total</p>}
+        </div>
         <div className="flex items-center gap-3">
           {pendingSelectedWorkers.length > 0 && (
             <Button
@@ -149,6 +159,15 @@ export default function AdminWorkersPage() {
             </tbody>
           </table>
           </div>
+        </div>
+      )}
+
+      {/* Pagination */}
+      {meta && meta.total > meta.limit && (
+        <div className="flex items-center justify-between mt-4">
+          <Button variant="secondary" size="sm" disabled={page <= 1} onClick={() => handlePage(page - 1)}>Previous</Button>
+          <span className="text-xs text-gray-500">Page {page} of {Math.ceil(meta.total / meta.limit)}</span>
+          <Button variant="secondary" size="sm" disabled={page >= Math.ceil(meta.total / meta.limit)} onClick={() => handlePage(page + 1)}>Next</Button>
         </div>
       )}
 

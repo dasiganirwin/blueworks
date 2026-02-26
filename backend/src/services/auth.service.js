@@ -163,6 +163,15 @@ async function logout(token) {
   await supabase.from('refresh_tokens').update({ revoked: true }).eq('token_hash', token_hash);
 }
 
+// S5-06: Revoke all active sessions for a user (self or admin-initiated)
+async function logoutAll(userId) {
+  await supabase
+    .from('refresh_tokens')
+    .update({ revoked: true })
+    .eq('user_id', userId)
+    .eq('revoked', false);
+}
+
 async function forgotPassword(email) {
   const { data: user } = await supabase.from('users').select('id, name').eq('email', email).maybeSingle();
   if (!user) return; // Silent — don't reveal if email exists
@@ -199,4 +208,4 @@ async function resetPassword({ token, password }) {
   await supabase.from('password_reset_tokens').update({ used: true }).eq('id', record.id);
 }
 
-module.exports = { register, sendOTP, verifyOTPCode, login, refreshToken, logout, forgotPassword, resetPassword };
+module.exports = { register, sendOTP, verifyOTPCode, login, refreshToken, logout, logoutAll, forgotPassword, resetPassword };

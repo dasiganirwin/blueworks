@@ -1,6 +1,7 @@
 'use client';
 import { Navbar } from '@/components/layout/Navbar';
 import { useAuth } from '@/hooks/useAuth';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 
 export default function CustomerLayout({ children }) {
   const { loading, user } = useAuth('customer');
@@ -10,7 +11,9 @@ export default function CustomerLayout({ children }) {
   return (
     <>
       <Navbar />
-      <main>{children}</main>
+      <ErrorBoundary dashboardPath="/dashboard">
+        <main>{children}</main>
+      </ErrorBoundary>
     </>
   );
 }

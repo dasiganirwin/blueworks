@@ -10,15 +10,18 @@ export default function AdminAnalyticsPage() {
   const [from, setFrom]           = useState('');
   const [to, setTo]               = useState('');
   const [loading, setLoading]     = useState(true);
+  const [error, setError]         = useState('');
 
-  const fetch = () => {
+  const loadAnalytics = () => {
     setLoading(true);
+    setError('');
     adminApi.getAnalytics({ from: from || undefined, to: to || undefined })
       .then(({ data }) => setAnalytics(data))
+      .catch(() => setError('Failed to load analytics. Please try again.'))
       .finally(() => setLoading(false));
   };
 
-  useEffect(fetch, []);
+  useEffect(loadAnalytics, []);
 
   const jobStats = [
     { label: 'Total Jobs',      value: analytics?.jobs?.total },
@@ -41,11 +44,16 @@ export default function AdminAnalyticsPage() {
       <div className="flex gap-3 items-end mb-6">
         <Input label="From" type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="w-40" />
         <Input label="To"   type="date" value={to}   onChange={(e) => setTo(e.target.value)}   className="w-40" />
-        <Button onClick={fetch} loading={loading}>Apply</Button>
+        <Button onClick={loadAnalytics} loading={loading}>Apply</Button>
       </div>
 
       {loading ? (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">{[...Array(8)].map((_,i)=><div key={i} className="h-20 bg-gray-100 rounded-xl animate-pulse"/>)}</div>
+      ) : error ? (
+        <div className="flex flex-col items-center py-16 gap-3">
+          <p className="text-sm text-danger-600">{error}</p>
+          <Button size="sm" onClick={loadAnalytics}>Try again</Button>
+        </div>
       ) : (
         <>
           <h2 className="font-semibold text-gray-700 mb-3">Jobs</h2>

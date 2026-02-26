@@ -8,5 +8,6 @@ const refreshToken  = async (req, res, next) => { try { res.json(await svc.refre
 const forgotPassword= async (req, res, next) => { try { await svc.forgotPassword(req.body.email); res.json({ message: 'Reset link sent if account exists.' }); } catch (e) { next(e); } };
 const resetPassword = async (req, res, next) => { try { await svc.resetPassword(req.body); res.json({ message: 'Password updated successfully.' });            } catch (e) { next(e); } };
 const logout        = async (req, res, next) => { try { const token = req.headers.authorization?.split(' ')[1]; await svc.logout(token); res.sendStatus(204); } catch (e) { next(e); } };
+const logoutAll     = async (req, res, next) => { try { await svc.logoutAll(req.user.sub); res.sendStatus(204); } catch (e) { next(e); } };
 
-module.exports = { register, sendOTP, verifyOTP, login, refreshToken, forgotPassword, resetPassword, logout };
+module.exports = { register, sendOTP, verifyOTP, login, refreshToken, forgotPassword, resetPassword, logout, logoutAll };

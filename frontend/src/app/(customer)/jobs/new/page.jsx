@@ -10,6 +10,17 @@ import { useToast } from '@/components/ui/Toast';
 
 const CATEGORIES = ['plumber','electrician','carpenter','welder','painter','aircon-tech','mason','general'];
 
+const TYPICAL_RANGES = {
+  plumber:       '₱250 – ₱600',
+  electrician:   '₱300 – ₱700',
+  carpenter:     '₱400 – ₱800',
+  welder:        '₱500 – ₱1,000',
+  painter:       '₱300 – ₱600',
+  'aircon-tech': '₱500 – ₱1,200',
+  mason:         '₱400 – ₱900',
+  general:       '₱200 – ₱500',
+};
+
 const STEPS = [
   { id: 1, label: 'Job Details' },
   { id: 2, label: 'Location' },
@@ -28,6 +39,8 @@ export default function NewJobPage() {
     lng:          '',
     urgency:      'immediate',
     scheduled_at: '',
+    budget_min:   '',
+    budget_max:   '',
   });
 
   // Field-level errors
@@ -36,6 +49,8 @@ export default function NewJobPage() {
     description: '',
     address:     '',
     urgency:     '',
+    budget_min:  '',
+    budget_max:  '',
   });
 
   // Photos stored as File objects (not FileList)
@@ -54,13 +69,21 @@ export default function NewJobPage() {
   const router = useRouter();
 
   // ── Derived: is the form submittable? ──────────────────────────────────────
-  const isSubmittable =
-    form.category.trim() !== '' &&
-    form.description.trim().length >= 10 &&
-    form.address.trim() !== '' &&
-    form.lat !== '' &&
-    form.lng !== '' &&
-    form.urgency.trim() !== '';
+  const isSubmittable = (() => {
+    const min = parseInt(form.budget_min, 10);
+    const max = parseInt(form.budget_max, 10);
+    return (
+      form.category.trim() !== '' &&
+      form.description.trim().length >= 10 &&
+      form.address.trim() !== '' &&
+      form.lat !== '' &&
+      form.lng !== '' &&
+      form.urgency.trim() !== '' &&
+      form.budget_min !== '' && !isNaN(min) && min > 0 &&
+      form.budget_max !== '' && !isNaN(max) && max > 0 &&
+      min <= max
+    );
+  })();
 
   // ── Update currentStep based on IntersectionObserver ──────────────────────
   useEffect(() => {
@@ -106,6 +129,8 @@ export default function NewJobPage() {
       description: '',
       address:     '',
       urgency:     '',
+      budget_min:  '',
+      budget_max:  '',
     };
     let valid = true;
 
@@ -123,6 +148,21 @@ export default function NewJobPage() {
     }
     if (!form.urgency.trim()) {
       errors.urgency = 'Please select an urgency level.';
+      valid = false;
+    }
+
+    const min = parseInt(form.budget_min, 10);
+    const max = parseInt(form.budget_max, 10);
+    if (!form.budget_min || isNaN(min) || min <= 0) {
+      errors.budget_min = 'Please enter a valid minimum budget.';
+      valid = false;
+    }
+    if (!form.budget_max || isNaN(max) || max <= 0) {
+      errors.budget_max = 'Please enter a valid maximum budget.';
+      valid = false;
+    }
+    if (!errors.budget_min && !errors.budget_max && min > max) {
+      errors.budget_max = 'Maximum must be greater than or equal to minimum.';
       valid = false;
     }
 
@@ -177,7 +217,9 @@ export default function NewJobPage() {
           lat:     parseFloat(form.lat),
           lng:     parseFloat(form.lng),
         },
-        urgency: form.urgency,
+        urgency:     form.urgency,
+        budget_min:  parseInt(form.budget_min, 10),
+        budget_max:  parseInt(form.budget_max, 10),
         ...(form.urgency === 'scheduled' && { scheduled_at: form.scheduled_at }),
       };
       const { data: job } = await jobsApi.create(body);
@@ -297,6 +339,50 @@ export default function NewJobPage() {
             required
           />
         )}
+
+        {/* ── Budget ───────────────────────────────────────────────────────── */}
+        <div>
+          <label className="text-sm font-medium text-gray-700 block mb-1">
+            Your Budget <span className="text-danger-500">*</span>
+          </label>
+          {TYPICAL_RANGES[form.category] && (
+            <p className="text-xs text-gray-500 mb-2">
+              Typical range in your area: <span className="font-medium text-gray-700">{TYPICAL_RANGES[form.category]}</span>
+            </p>
+          )}
+          <div className="flex gap-3">
+            <div className="flex-1">
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-500 pointer-events-none">Min ₱</span>
+                <input
+                  type="number"
+                  min="1"
+                  step="1"
+                  placeholder="e.g. 300"
+                  value={form.budget_min}
+                  onChange={(e) => { set('budget_min')(e); setFieldErrors(p => ({ ...p, budget_min: '', budget_max: '' })); }}
+                  className={`w-full border rounded-lg pl-12 pr-3 py-2 text-sm focus:outline-none focus:ring-1 ${fieldErrors.budget_min ? 'border-danger-400 focus:border-danger-500 focus:ring-danger-300' : 'border-gray-300 focus:border-brand-500 focus:ring-brand-300'}`}
+                />
+              </div>
+              {fieldErrors.budget_min && <p className="text-xs text-danger-600 mt-1">{fieldErrors.budget_min}</p>}
+            </div>
+            <div className="flex-1">
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-500 pointer-events-none">Max ₱</span>
+                <input
+                  type="number"
+                  min="1"
+                  step="1"
+                  placeholder="e.g. 600"
+                  value={form.budget_max}
+                  onChange={(e) => { set('budget_max')(e); setFieldErrors(p => ({ ...p, budget_max: '' })); }}
+                  className={`w-full border rounded-lg pl-12 pr-3 py-2 text-sm focus:outline-none focus:ring-1 ${fieldErrors.budget_max ? 'border-danger-400 focus:border-danger-500 focus:ring-danger-300' : 'border-gray-300 focus:border-brand-500 focus:ring-brand-300'}`}
+                />
+              </div>
+              {fieldErrors.budget_max && <p className="text-xs text-danger-600 mt-1">{fieldErrors.budget_max}</p>}
+            </div>
+          </div>
+        </div>
 
         {/* ── Step 2: Location ─────────────────────────────────────────────── */}
         <div ref={step2Ref} className="space-y-3">

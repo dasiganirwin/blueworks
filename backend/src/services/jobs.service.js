@@ -21,7 +21,7 @@ const STATUS_TIMESTAMPS = {
 };
 
 async function createJob(customerId, body) {
-  const { category, description, location, urgency, scheduled_at } = body;
+  const { category, description, location, urgency, scheduled_at, budget_min, budget_max } = body;
 
   const { data: job, error } = await supabase
     .from('jobs')
@@ -34,6 +34,8 @@ async function createJob(customerId, body) {
       location_lng:     location.lng,
       urgency,
       scheduled_at,
+      budget_min,
+      budget_max,
     })
     .select()
     .single();
@@ -55,6 +57,8 @@ async function createJob(customerId, body) {
     location_lat:     job.location_lat,
     location_lng:     job.location_lng,
     urgency:          job.urgency,
+    budget_min:       job.budget_min,
+    budget_max:       job.budget_max,
     status:           'pending',
     created_at:       job.created_at,
   });
@@ -77,7 +81,17 @@ async function listJobs(userId, role, { status, category, page = 1, limit = 20 }
   if (role === 'customer') query = query.eq('customer_id', userId);
   // Workers see only jobs assigned to them; they discover new pending jobs via /jobs/nearby
   if (role === 'worker')   query = query.eq('worker_id', userId);
-  if (status)   query = query.eq('status', status);
+
+  // S5-01: support comma-separated status values (e.g. "accepted,en_route,in_progress")
+  if (status) {
+    const statuses = status.split(',').map(s => s.trim()).filter(Boolean);
+    if (statuses.length === 1) {
+      query = query.eq('status', statuses[0]);
+    } else {
+      query = query.in('status', statuses);
+    }
+  }
+
   if (category) query = query.eq('category', category);
 
   const { data, count, error } = await query;
@@ -150,7 +164,11 @@ async function updateStatus(jobId, userId, role, newStatus) {
     [tsField]:  new Date().toISOString(),
   };
 
-  if (newStatus === 'accepted') updates.worker_id = userId;
+  if (newStatus === 'accepted') {
+    updates.worker_id = userId;
+    // Direct accept = agree to customer's budget_max
+    if (job.budget_max) updates.agreed_price = job.budget_max;
+  }
 
   const { data: updated, error } = await supabase
     .from('jobs')
@@ -192,6 +210,132 @@ async function updateStatus(jobId, userId, role, newStatus) {
   }
 
   return updated;
+}
+
+async function counterOffer(jobId, workerId, price) {
+  const { data: job } = await supabase.from('jobs').select('*').eq('id', jobId).maybeSingle();
+  if (!job) throw Errors.NOT_FOUND('job');
+  if (job.status !== 'pending') throw Errors.VALIDATION_ERROR('Job must be pending to submit a counter offer.');
+  if (job.worker_id) throw Errors.JOB_ALREADY_TAKEN();
+
+  const { data: updated, error } = await supabase
+    .from('jobs')
+    .update({
+      status:         'accepted',
+      worker_id:      workerId,
+      worker_counter: price,
+      accepted_at:    new Date().toISOString(),
+      updated_at:     new Date().toISOString(),
+    })
+    .eq('id', jobId)
+    .select()
+    .single();
+
+  if (error) {
+    if (error.code === '23514') throw Errors.VALIDATION_ERROR('Status update not permitted in the current job state.');
+    throw new AppError(500, 'DB_ERROR', error.message ?? 'Failed to submit counter offer.');
+  }
+
+  await supabase.from('job_status_history').insert({
+    job_id:      jobId,
+    from_status: 'pending',
+    to_status:   'accepted',
+    changed_by:  workerId,
+  });
+
+  await supabase.from('workers').update({ availability_status: 'busy' }).eq('user_id', workerId);
+
+  // Notify customer
+  await notificationsService.send(
+    job.customer_id,
+    'job_counter_offer',
+    'Worker Counter Offer',
+    `A worker proposed ₱${price.toLocaleString()} for your job. Review and confirm.`,
+    { job_id: jobId }
+  );
+
+  broadcast('job.status_changed', { job_id: jobId, status: 'accepted', worker_counter: price }, jobId);
+
+  return updated;
+}
+
+async function confirmPrice(jobId, customerId, confirmed) {
+  const { data: job } = await supabase.from('jobs').select('*').eq('id', jobId).maybeSingle();
+  if (!job) throw Errors.NOT_FOUND('job');
+  if (job.customer_id !== customerId) throw Errors.FORBIDDEN();
+  if (job.status !== 'accepted') throw Errors.VALIDATION_ERROR('Job must be accepted to confirm price.');
+  if (!job.worker_counter) throw Errors.VALIDATION_ERROR('No counter offer to confirm.');
+  if (job.agreed_price) throw Errors.VALIDATION_ERROR('Price is already confirmed.');
+
+  if (confirmed) {
+    const { data: updated, error } = await supabase
+      .from('jobs')
+      .update({ agreed_price: job.worker_counter, updated_at: new Date().toISOString() })
+      .eq('id', jobId)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    await notificationsService.send(
+      job.worker_id,
+      'price_confirmed',
+      'Price Confirmed',
+      `Customer accepted your price of ₱${job.worker_counter.toLocaleString()}.`,
+      { job_id: jobId }
+    );
+
+    broadcast('job.price_confirmed', { job_id: jobId, agreed_price: job.worker_counter }, jobId);
+    return updated;
+  } else {
+    // Customer declined — reset job to pending, release worker
+    const { error } = await supabase
+      .from('jobs')
+      .update({
+        status:         'pending',
+        worker_id:      null,
+        worker_counter: null,
+        accepted_at:    null,
+        updated_at:     new Date().toISOString(),
+      })
+      .eq('id', jobId);
+
+    if (error) throw error;
+
+    await supabase.from('job_status_history').insert({
+      job_id:      jobId,
+      from_status: 'accepted',
+      to_status:   'pending',
+      changed_by:  customerId,
+    });
+
+    await supabase.from('workers').update({ availability_status: 'online' }).eq('user_id', job.worker_id);
+
+    await notificationsService.send(
+      job.worker_id,
+      'price_declined',
+      'Counter Offer Declined',
+      'Customer declined your counter offer. The job is back in the pool.',
+      { job_id: jobId }
+    );
+
+    broadcast('job.status_changed', { job_id: jobId, status: 'pending' }, jobId);
+    broadcast('job.created', {
+      id:               job.id,
+      category:         job.category,
+      description:      job.description,
+      location_address: job.location_address,
+      location_lat:     job.location_lat,
+      location_lng:     job.location_lng,
+      urgency:          job.urgency,
+      budget_min:       job.budget_min,
+      budget_max:       job.budget_max,
+      status:           'pending',
+      created_at:       job.created_at,
+    });
+
+    return { declined: true };
+  }
 }
 
 async function uploadPhotos(jobId, userId, files) {
@@ -260,7 +404,7 @@ async function sendMessage(jobId, senderId, role, content) {
 async function rejectJob(jobId, workerId) {
   const { data: job, error: fetchErr } = await supabase
     .from('jobs')
-    .select('id, status, worker_id, customer_id, category, description, location_address, location_lat, location_lng, urgency, created_at')
+    .select('id, status, worker_id, customer_id, category, description, location_address, location_lat, location_lng, urgency, budget_min, budget_max, created_at')
     .eq('id', jobId)
     .maybeSingle();
 
@@ -271,7 +415,7 @@ async function rejectJob(jobId, workerId) {
   // Reset job to pending, clear worker assignment
   const { error: updateErr } = await supabase
     .from('jobs')
-    .update({ status: 'pending', worker_id: null, accepted_at: null })
+    .update({ status: 'pending', worker_id: null, accepted_at: null, agreed_price: null, worker_counter: null })
     .eq('id', jobId);
 
   if (updateErr) throw updateErr;
@@ -304,6 +448,8 @@ async function rejectJob(jobId, workerId) {
     location_lat:     job.location_lat,
     location_lng:     job.location_lng,
     urgency:          job.urgency,
+    budget_min:       job.budget_min,
+    budget_max:       job.budget_max,
     status:           'pending',
     created_at:       job.created_at,
   });
@@ -312,4 +458,8 @@ async function rejectJob(jobId, workerId) {
   broadcast('job.status_changed', { job_id: jobId, status: 'pending' }, jobId);
 }
 
-module.exports = { createJob, listJobs, getNearbyJobs, getJob, updateStatus, uploadPhotos, deleteJob, getMessages, sendMessage, rejectJob };
+module.exports = {
+  createJob, listJobs, getNearbyJobs, getJob, updateStatus,
+  counterOffer, confirmPrice,
+  uploadPhotos, deleteJob, getMessages, sendMessage, rejectJob,
+};
