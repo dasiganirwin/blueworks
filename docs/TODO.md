@@ -239,7 +239,7 @@ S1-14 (Workers profile page)
 | Task ID | Task | Owner | File(s) | Definition of Done | Status |
 |---------|------|-------|---------|-------------------|--------|
 | S2-09 | Empty states for all list pages | Jei | Jobs, earnings, notifications, nearby jobs pages | All list pages show a meaningful empty state (icon + message + CTA) when no data | ✅ Done |
-| S2-10 | QA pass — real-time flows, chat, availability | Alex | All Sprint 2 files | Manual test of: job accept → live status update → chat exchange → job complete → earnings updated; 0 console errors | To Do |
+| S2-10 | QA pass — real-time flows, chat, availability | Alex | All Sprint 2 files | Manual test of: job accept → live status update → chat exchange → job complete → earnings updated; 0 console errors | ⏸ Deferred to Sprint 5 QA |
 
 ---
 
@@ -527,3 +527,133 @@ S4-01 + S4-02 + S4-03 + S4-04 + S4-05 + S4-06
 - Resend: install `resend` package in backend (`npm install resend`). Use `RESEND_API_KEY` env var. Always `catch` and log email errors — never let email failure break the notification insert.
 - Worker profile edit needs a `PATCH /workers/me` endpoint to update `skills` and any bio/profile fields on the `workers` table. Check if this exists; if not, Lau adds it alongside S4-07.
 - Admin transactions page needs `GET /admin/payments` — add to `admin.routes.js` with pagination and status filter.
+
+---
+
+---
+
+# Sprint 5 — Performance, Reliability & Production Hardening
+
+**Sprint Goal:** Harden the MVP for public launch — consolidate redundant API calls, tighten auth security, add error resilience, and complete admin operational tooling. Deferred Sprint 4 items (Stripe live, Resend email) remain blocked on credentials and are tracked separately.
+
+**Last Updated:** 2026-02-26
+**Managed by:** Orchestrator Agent
+
+---
+
+## Blockers — Resolve Before Execution
+
+| # | Blocker | Owner | Urgency |
+|---|---------|-------|---------|
+| B-12 | ~~`STRIPE_SECRET_KEY` + `STRIPE_WEBHOOK_SECRET`~~ — S4-01, S4-03 still deferred | Irwin | High |
+| B-14 | ~~`RESEND_API_KEY`~~ — S4-05 still deferred | Irwin / Jane | High |
+| B-15 | Confirm target iOS version for Web Push (requires Safari 16.1+) — needed before S5-07 | Irwin | Low |
+
+---
+
+## Task Board
+
+### 🔴 HIGH PRIORITY
+
+| Task ID | Task | Owner | File(s) | Definition of Done | Status |
+|---------|------|-------|---------|-------------------|--------|
+| S5-01 | Backend multi-status job filter | Lau | `backend/src/routes/jobs.routes.js`, `backend/src/services/jobs.service.js`, `frontend/src/app/(worker)/worker/dashboard/page.jsx` | `GET /jobs?status=accepted,en_route,in_progress` supported via comma-separated status param; worker dashboard reduced from 3 parallel calls to 1; response unchanged | To Do |
+| S5-02 | Auth route rate limiting — brute-force protection | Lau | `backend/src/routes/auth.routes.js`, `backend/src/app.js` | Stricter per-route limits applied: login (10 req / 15 min per IP), OTP send (3 req / 15 min per IP), register (5 req / hour per IP); exceeding limit returns 429 with clear message | To Do |
+| S5-03 | React error boundaries — catch JS crashes gracefully | Jei | `frontend/src/app/(customer)/layout.jsx`, `frontend/src/app/(worker)/layout.jsx`, `frontend/src/app/(admin)/layout.jsx` | `ErrorBoundary` component wraps each role layout; uncaught JS errors render a friendly fallback UI (icon + message + "Go to Dashboard" link) instead of white screen | To Do |
+
+---
+
+### 🟡 MEDIUM PRIORITY
+
+| Task ID | Task | Owner | File(s) | Definition of Done | Status |
+|---------|------|-------|---------|-------------------|--------|
+| S5-04 | Analytics page — error state + fetch naming fix | Jei | `frontend/src/app/(admin)/admin/analytics/page.jsx` | `const fetch` renamed to `loadAnalytics` (no longer shadows global `fetch`); `.catch()` added with error state and "Try again" button; consistent with admin dashboard error pattern | To Do |
+| S5-05 | Admin workers list — pagination | Jei | `frontend/src/app/(admin)/admin/workers/page.jsx`, `backend/src/routes/admin.routes.js` | Workers list fetches max 20 per page; pagination controls (Previous / Page N of M / Next) match admin payments pattern; `GET /admin/workers` accepts `page` + `limit` params | To Do |
+| S5-06 | Session security — logout all devices | Lau | `backend/src/routes/auth.routes.js`, `backend/src/services/auth.service.js` | `POST /auth/logout-all` revokes all active refresh tokens for the authenticated user; admin can trigger logout-all for any user via `POST /admin/users/:id/revoke-sessions`; endpoint requires admin role | To Do |
+
+---
+
+### 🟢 LOW PRIORITY
+
+| Task ID | Task | Owner | File(s) | Definition of Done | Status |
+|---------|------|-------|---------|-------------------|--------|
+| S5-07 | Web Push notifications — replace navbar polling | Jei + Lau | `frontend/public/sw.js`, `backend/src/services/notifications.service.js` | Service worker subscribes to Web Push; backend stores push subscriptions in `push_subscriptions` table; `notifications.service` sends push on key events (job accepted, completed, dispute); 30s navbar polling removed | To Do |
+| S5-08 | QA pass — Sprint 5 + deferred S2-10 regression | Alex | All Sprint 5 files + Sprint 2/3/4 | Full regression: real-time flows, chat, earnings, category filter, cash confirm, worker profile edit, admin transactions, pagination, error boundaries; 0 console errors in prod build | To Do |
+
+---
+
+## Dependency Chain
+
+```
+S5-02 (Auth rate limiting)     ← independent, do first — security
+S5-01 (Multi-status filter)
+  └── S5-08 (QA — runs last)
+
+S5-03 (Error boundaries)       ← independent frontend
+S5-04 (Analytics fix)          ← independent frontend
+
+S5-05 (Workers pagination)
+  └── backend: add page/limit to GET /admin/workers
+
+S5-06 (Logout all)             ← independent backend
+
+B-15 (iOS Web Push confirm)
+  └── S5-07 (Web Push)
+        └── S5-08 (QA)
+
+S5-01 + S5-02 + S5-03 + S5-04 + S5-05 + S5-06 + S5-07
+  └── S5-08 (QA — runs last; includes deferred S2-10)
+```
+
+---
+
+## Risks
+
+| Risk | Severity | Mitigation |
+|------|----------|-----------|
+| Multi-status filter breaks existing single-status queries | Medium | Keep single-value `?status=x` working; extend parser to also accept comma-separated values |
+| Stricter rate limits lock out legitimate users on mobile (shared IPs via NAT) | Medium | Rate limit by user ID when authenticated, IP only for unauthenticated routes |
+| Web Push not supported on older iOS (< 16.1) | Medium | Confirm target OS before S5-07; keep polling as fallback if push fails |
+| Error boundaries swallow useful dev errors | Low | Only activate boundaries in production (`process.env.NODE_ENV === 'production'`); dev mode still shows React error overlay |
+| `logout-all` endpoint could be abused by authenticated attacker | Low | Require current valid session to call; admin version requires admin role |
+
+---
+
+## Assignment Summary
+
+| Owner | Tasks |
+|-------|-------|
+| **Lau** | S5-01 (multi-status backend), S5-02 (rate limiting), S5-06 (logout-all) |
+| **Jei** | S5-03 (error boundaries), S5-04 (analytics fix), S5-05 (workers pagination), S5-07 (Web Push frontend) |
+| **Lau + Jei** | S5-07 (Web Push — backend + frontend joint task) |
+| **Alex** | S5-08 (QA — runs last; includes deferred S2-10) |
+| **Irwin** | Resolve B-15 (iOS Web Push target version) |
+
+---
+
+## Suggested Execution Order
+
+**Lau:** `S5-02 → S5-01 → S5-06 → S5-07 (backend)`
+**Jei:** `S5-04 → S5-03 → S5-05 → S5-07 (frontend)`
+**Alex:** `S5-08 (after all above Done)`
+
+---
+
+## Notes
+
+- S5-01 multi-status: extend `listJobs` Zod schema to accept `status` as either a single string or comma-separated string; split in service layer before querying. Do NOT break existing single-value callers.
+- S5-02 rate limiting: use `express-rate-limit` (already installed); create per-route limiters rather than relying only on the global 100 req/15 min limit. Auth routes are high-value attack targets.
+- S5-03 error boundaries: Next.js App Router uses `error.jsx` files per segment for server component errors; for client-side JS errors, a React `ErrorBoundary` class component is still needed. Place one at each role layout level.
+- S5-04: rename `const fetch` → `const loadAnalytics` to avoid shadowing the global `fetch`. This is a subtle bug — in some environments the local declaration may prevent the Suspense/cache `fetch` override from working correctly.
+- S5-05 workers pagination: backend `GET /admin/workers` currently passes `status` filter but no `page`/`limit` to `listWorkers`. Add pagination params matching the `listPayments` pattern.
+- S5-07 Web Push: requires `web-push` npm package on backend; `VAPID_PUBLIC_KEY` + `VAPID_PRIVATE_KEY` env vars (generate with `npx web-push generate-vapid-keys`). Store push subscriptions in a new `push_subscriptions` table (`user_id`, `endpoint`, `keys`, `created_at`).
+
+---
+
+## Deferred Items (Awaiting Credentials)
+
+| Task | Blocked On | Target Sprint |
+|------|-----------|---------------|
+| S4-01 Stripe live test | `STRIPE_SECRET_KEY` in Railway | Sprint 5 / 6 when ready |
+| S4-03 Stripe redirect handling | Stripe keys + S4-01 | Sprint 5 / 6 when ready |
+| S4-05 Resend emails | `RESEND_API_KEY` in Railway | Sprint 5 / 6 when ready |
