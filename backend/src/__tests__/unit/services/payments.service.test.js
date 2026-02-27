@@ -8,8 +8,8 @@ const stripe   = require('../../../config/stripe');
 const { makeChain } = require('../../helpers/supabase.mock');
 const paymentsService = require('../../../services/payments.service');
 
-const COMPLETED_JOB = { id: 'job-001', worker_id: 'w-001', status: 'completed' };
-const PENDING_JOB   = { id: 'job-002', worker_id: 'w-001', status: 'in_progress' };
+const COMPLETED_JOB = { id: 'job-001', customer_id: 'cust-001', worker_id: 'w-001', status: 'completed' };
+const PENDING_JOB   = { id: 'job-002', customer_id: 'cust-001', worker_id: 'w-001', status: 'in_progress' };
 
 describe('paymentsService.initiatePayment', () => {
   beforeEach(() => jest.clearAllMocks());
@@ -17,7 +17,7 @@ describe('paymentsService.initiatePayment', () => {
   it('throws JOB_NOT_FOUND when job does not exist', async () => {
     supabase.from.mockImplementation(() => makeChain({ data: null, error: null }));
 
-    await expect(paymentsService.initiatePayment('cust-001', { job_id: 'bad', method: 'cash', amount: 100, currency: 'PHP' }))
+    await expect(paymentsService.initiatePayment('cust-001', 'customer', { job_id: 'bad', method: 'cash', amount: 100, currency: 'PHP' }))
       .rejects.toMatchObject({ code: 'JOB_NOT_FOUND' });
   });
 
@@ -25,7 +25,7 @@ describe('paymentsService.initiatePayment', () => {
     supabase.from
       .mockImplementationOnce(() => makeChain({ data: PENDING_JOB, error: null }));
 
-    await expect(paymentsService.initiatePayment('cust-001', { job_id: 'job-002', method: 'cash', amount: 100, currency: 'PHP' }))
+    await expect(paymentsService.initiatePayment('cust-001', 'customer', { job_id: 'job-002', method: 'cash', amount: 100, currency: 'PHP' }))
       .rejects.toMatchObject({ code: 'JOB_NOT_COMPLETED' });
   });
 
@@ -34,7 +34,7 @@ describe('paymentsService.initiatePayment', () => {
       .mockImplementationOnce(() => makeChain({ data: COMPLETED_JOB, error: null }))             // job fetch
       .mockImplementationOnce(() => makeChain({ data: { id: 'pay-1', status: 'completed' }, error: null })); // existing payment
 
-    await expect(paymentsService.initiatePayment('cust-001', { job_id: 'job-001', method: 'gcash', amount: 850, currency: 'PHP' }))
+    await expect(paymentsService.initiatePayment('cust-001', 'customer', { job_id: 'job-001', method: 'gcash', amount: 850, currency: 'PHP' }))
       .rejects.toMatchObject({ code: 'ALREADY_PAID' });
   });
 
@@ -45,7 +45,7 @@ describe('paymentsService.initiatePayment', () => {
       .mockImplementationOnce(() => makeChain({ data: null, error: null }))           // no existing payment
       .mockImplementationOnce(() => makeChain({ data: paymentRow, error: null }));    // upsert
 
-    const result = await paymentsService.initiatePayment('cust-001', { job_id: 'job-001', method: 'cash', amount: 850, currency: 'PHP' });
+    const result = await paymentsService.initiatePayment('cust-001', 'customer', { job_id: 'job-001', method: 'cash', amount: 850, currency: 'PHP' });
 
     expect(result.method).toBe('cash');
     expect(result.payment_url).toBeNull();
@@ -62,7 +62,7 @@ describe('paymentsService.initiatePayment', () => {
       .mockImplementationOnce(() => makeChain({ data: null, error: null }))
       .mockImplementationOnce(() => makeChain({ data: paymentRow, error: null }));
 
-    const result = await paymentsService.initiatePayment('cust-001', { job_id: 'job-001', method: 'card', amount: 850, currency: 'PHP' });
+    const result = await paymentsService.initiatePayment('cust-001', 'customer', { job_id: 'job-001', method: 'card', amount: 850, currency: 'PHP' });
 
     expect(stripe.checkout.sessions.create).toHaveBeenCalled();
     expect(result.payment_url).toContain('stripe.com');
@@ -70,7 +70,7 @@ describe('paymentsService.initiatePayment', () => {
 });
 
 describe('paymentsService.cashConfirm', () => {
-  beforeEach(() => jest.clearAllMocks());
+  beforeEach(() => jest.resetAllMocks());
 
   it('throws NOT_FOUND when payment does not exist', async () => {
     supabase.from.mockImplementation(() => makeChain({ data: null, error: null }));

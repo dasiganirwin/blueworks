@@ -76,7 +76,11 @@ describe('workersService.getWorkerById', () => {
   beforeEach(() => jest.clearAllMocks());
 
   it('returns worker profile', async () => {
-    setupFrom({ workers: { data: WORKER_ROW, error: null } });
+    setupFrom({
+      workers:      { data: { user_id: 'w-001', availability_status: 'online', rating: 4.8, completed_jobs_count: 10 }, error: null },
+      worker_skills:{ data: [{ category: 'plumber' }], error: null },
+      users:        { data: { name: 'Pedro Reyes' }, error: null },
+    });
     const result = await workersService.getWorkerById('w-001');
     expect(result.id).toBe('w-001');
     expect(result.name).toBe('Pedro Reyes');
