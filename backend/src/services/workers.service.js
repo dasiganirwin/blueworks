@@ -48,21 +48,31 @@ async function getNearby({ lat, lng, category, radius = 10 }) {
 }
 
 async function getWorkerById(id) {
-  const { data, error } = await supabase
-    .from('workers')
-    .select('user_id, availability_status, rating, completed_jobs_count, worker_skills(category), users(name)')
-    .eq('user_id', id)
-    .maybeSingle();
+  // Use separate queries to avoid PostgREST embedded-relation failures
+  const [{ data: worker, error }, { data: skills }, { data: userRow }] = await Promise.all([
+    supabase.from('workers')
+      .select('user_id, availability_status, rating, completed_jobs_count')
+      .eq('user_id', id)
+      .maybeSingle(),
+    supabase.from('worker_skills')
+      .select('category')
+      .eq('worker_id', id),
+    supabase.from('users')
+      .select('name')
+      .eq('id', id)
+      .maybeSingle(),
+  ]);
 
-  if (error || !data) throw Errors.NOT_FOUND('worker');
+  if (error) console.error('[workers] getWorkerById error:', JSON.stringify(error));
+  if (error || !worker) throw Errors.NOT_FOUND('worker');
 
   return {
-    id:                  data.user_id,
-    name:                data.users?.name,
-    skills:              data.worker_skills.map(s => s.category),
-    rating:              data.rating,
-    completed_jobs:      data.completed_jobs_count,
-    availability_status: data.availability_status,
+    id:                  worker.user_id,
+    name:                userRow?.name,
+    skills:              (skills ?? []).map(s => s.category),
+    rating:              worker.rating,
+    completed_jobs:      worker.completed_jobs_count,
+    availability_status: worker.availability_status,
   };
 }
 
