@@ -83,12 +83,13 @@ async function listJobs(userId, role, { status, category, page = 1, limit = 20 }
   if (role === 'worker')   query = query.eq('worker_id', userId);
 
   // S5-01: support comma-separated status values (e.g. "accepted,en_route,in_progress")
+  // Use .or() instead of .in() to avoid ENUM cast issues in some PostgREST versions
   if (status) {
     const statuses = status.split(',').map(s => s.trim()).filter(Boolean);
     if (statuses.length === 1) {
       query = query.eq('status', statuses[0]);
     } else {
-      query = query.in('status', statuses);
+      query = query.or(statuses.map(s => `status.eq.${s}`).join(','));
     }
   }
 
@@ -125,7 +126,7 @@ async function getNearbyJobs(workerId, { lat, lng, radius = 10, page = 1, limit 
 async function getJob(jobId, userId, role) {
   const { data: job, error } = await supabase
     .from('jobs')
-    .select('*, job_photos(url), customer:users!customer_id(id,name), worker:users!worker_id(id,name), payment:payments(id,method,status,amount)')
+    .select('*')
     .eq('id', jobId)
     .maybeSingle();
 
@@ -139,7 +140,23 @@ async function getJob(jobId, userId, role) {
     throw Errors.FORBIDDEN();
   }
 
-  return job;
+  // Fetch related data in parallel — avoid PostgREST embedded relation cache issues
+  const [photosResult, customerResult, workerResult, paymentResult] = await Promise.all([
+    supabase.from('job_photos').select('url').eq('job_id', jobId),
+    supabase.from('users').select('id, name').eq('id', job.customer_id).maybeSingle(),
+    job.worker_id
+      ? supabase.from('users').select('id, name').eq('id', job.worker_id).maybeSingle()
+      : Promise.resolve({ data: null }),
+    supabase.from('payments').select('id, method, status, amount').eq('job_id', jobId).maybeSingle(),
+  ]);
+
+  return {
+    ...job,
+    job_photos: photosResult.data ?? [],
+    customer:   customerResult.data,
+    worker:     workerResult.data,
+    payment:    paymentResult.data,
+  };
 }
 
 async function updateStatus(jobId, userId, role, newStatus) {
