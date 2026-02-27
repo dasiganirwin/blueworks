@@ -15,30 +15,32 @@ export default function WorkerDashboard() {
   const [togglingAvail, setTogglingAvail] = useState(false);
   const [totalEarned, setTotalEarned]     = useState(null);
   const [loading, setLoading]             = useState(true);
+  const [error, setError]                 = useState('');
   const router = useRouter();
 
-  useEffect(() => {
+  const loadDashboard = () => {
     if (!user?.id) return;
+    setLoading(true);
+    setError('');
     Promise.all([
-      jobsApi.list({ status: 'accepted' }),
-      jobsApi.list({ status: 'en_route' }),
-      jobsApi.list({ status: 'in_progress' }),
+      jobsApi.list({ status: 'accepted,en_route,in_progress' }),
       workersApi.getById(user.id),
       workersApi.getEarnings(),
-    ]).then(([accepted, enRoute, inProg, worker, earnings]) => {
-      setActiveJobs([
-        ...(accepted.data.data ?? []),
-        ...(enRoute.data.data ?? []),
-        ...(inProg.data.data ?? []),
-      ]);
+    ]).then(([jobs, worker, earnings]) => {
+      setActiveJobs(jobs.data.data ?? []);
       if (worker.data?.availability_status) {
         setAvailability(worker.data.availability_status);
       }
       if (earnings.data?.summary?.total_earned != null) {
         setTotalEarned(earnings.data.summary.total_earned);
       }
-    }).catch(() => { /* leave list empty on error */ })
+    }).catch(() => setError('Failed to load dashboard. Please try again.'))
       .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    loadDashboard();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);
 
   const toggleAvailability = async () => {
@@ -97,7 +99,12 @@ export default function WorkerDashboard() {
         <Button size="sm" variant="outline" onClick={() => router.push('/worker/jobs/nearby')}>Find Jobs</Button>
       </div>
 
-      {loading ? (
+      {error ? (
+        <div className="text-center py-10">
+          <p className="text-sm text-danger-600 mb-3">{error}</p>
+          <Button size="sm" variant="outline" onClick={loadDashboard}>Try again</Button>
+        </div>
+      ) : loading ? (
         <div className="space-y-3">{[1,2].map(i => <div key={i} className="h-24 bg-gray-100 rounded-xl animate-pulse" />)}</div>
       ) : activeJobs.length === 0 ? (
         <div className="text-center py-10 text-gray-400 text-sm">No active jobs. Go online to receive requests.</div>
