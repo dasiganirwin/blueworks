@@ -536,7 +536,7 @@ S4-01 + S4-02 + S4-03 + S4-04 + S4-05 + S4-06
 
 **Sprint Goal:** Harden the MVP for public launch — consolidate redundant API calls, tighten auth security, add error resilience, and complete admin operational tooling. Deferred Sprint 4 items (Stripe live, Resend email) remain blocked on credentials and are tracked separately.
 
-**Last Updated:** 2026-02-26 ✅ SPRINT IN PROGRESS
+**Last Updated:** 2026-02-27 ✅ SPRINT COMPLETE
 **Managed by:** Orchestrator Agent
 
 ---
@@ -592,7 +592,7 @@ S4-01 + S4-02 + S4-03 + S4-04 + S4-05 + S4-06
 | Task ID | Task | Owner | File(s) | Definition of Done | Status |
 |---------|------|-------|---------|-------------------|--------|
 | S5-07 | Web Push notifications — replace navbar polling | Jei + Lau | `frontend/worker/index.js`, `backend/src/services/push.service.js`, `backend/src/routes/push.routes.js` | Service worker subscribes to Web Push; backend stores push subscriptions in `push_subscriptions` table; `notifications.service` sends push on key events; 30s navbar polling replaced with visibilitychange + SW message | ✅ Done |
-| S5-08 | QA pass — Sprint 5 + deferred S2-10 regression | Alex | All Sprint 5 files + Sprint 2/3/4 | Full regression: real-time flows, chat, earnings, category filter, cash confirm, worker profile edit, admin transactions, pagination, error boundaries; 0 console errors in prod build | To Do |
+| S5-08 | QA pass — Sprint 5 + deferred S2-10 regression | Alex | All Sprint 5 files + Sprint 2/3/4 | Full regression: real-time flows, chat, earnings, category filter, cash confirm, worker profile edit, admin transactions, pagination, error boundaries; 0 console errors in prod build | ✅ Done |
 
 ---
 
