@@ -28,6 +28,7 @@ describe('POST /api/v1/jobs', () => {
         category: 'plumber', description: 'Fix leaking pipe under sink',
         location: { address: '123 Rizal St', lat: 14.5995, lng: 120.9842 },
         urgency: 'immediate',
+        budget_min: 500, budget_max: 1500,
       });
 
     expect(res.status).toBe(201);

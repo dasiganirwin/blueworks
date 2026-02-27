@@ -3,19 +3,19 @@ import { Badge } from '@/components/ui/Badge';
 
 describe('Badge', () => {
   const STATUSES = [
-    ['pending',          'Pending',          'bg-yellow-100'],
+    ['pending',          'Pending',          'bg-warning-100'],
     ['accepted',         'Accepted',         'bg-blue-100'],
     ['en_route',         'En Route',         'bg-indigo-100'],
     ['in_progress',      'In Progress',      'bg-purple-100'],
-    ['completed',        'Completed',        'bg-green-100'],
+    ['completed',        'Completed',        'bg-success-100'],
     ['cancelled',        'Cancelled',        'bg-gray-100'],
-    ['disputed',         'Disputed',         'bg-red-100'],
-    ['online',           'Online',           'bg-green-100'],
+    ['disputed',         'Disputed',         'bg-orange-100'],
+    ['online',           'Online',           'bg-success-100'],
     ['offline',          'Offline',          'bg-gray-100'],
     ['busy',             'Busy',             'bg-orange-100'],
-    ['active',           'Active',           'bg-green-100'],
-    ['suspended',        'Suspended',        'bg-red-100'],
-    ['pending_approval', 'Pending Approval', 'bg-yellow-100'],
+    ['active',           'Active',           'bg-success-100'],
+    ['suspended',        'Suspended',        'bg-danger-100'],
+    ['pending_approval', 'Pending Approval', 'bg-warning-100'],
   ];
 
   test.each(STATUSES)('status "%s" renders label "%s" with class %s', (status, expectedLabel, cssClass) => {
